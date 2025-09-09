@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Reservar / Vigilar</h1>
+
+<h3>Nuevo conjunto</h3>
+<form method="post" action="{{ url_for('resv.reservar_set_create') }}">
+  <label>Nombre del conjunto</label>
+  <input name="nombre" required />
+  <label>Toma preferida</label>
+  <select name="toma">
+    <option value="A">A</option>
+    <option value="B">B</option>
+  </select>
+  <label>Ventana de cambio (min)</label>
+  <input name="ventana" type="number" min="1" max="60" value="5"/>
+  <label>Activo</label>
+  <select name="activo">
+    <option value="1">Sí</option>
+    <option value="0">No</option>
+  </select>
+  <button type="submit">Crear</button>
+</form>
+
+<h3>Mis conjuntos</h3>
+<ul>
+  {% for s in sets %}
+    <li>
+      <a href="{{ url_for('resv.reservar_set_detail', setid=s.SetId) }}">{{ s.Nombre }}</a>
+      — items: {{ s.NumItems }} — toma {{ s.TomaPreferida }} — ventana {{ s.VentanaCambioMin }} min — {{ 'Activo' if s.Activo else 'Inactivo' }}
+    </li>
+  {% else %}
+    <li>No hay conjuntos aún.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

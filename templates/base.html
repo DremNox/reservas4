@@ -5,16 +5,29 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Reservas 4.0</title>
   <style>
-    body { font-family: system-ui, Arial, sans-serif; padding: 1.2rem; max-width: 860px; margin: 0 auto; }
+    body { font-family: system-ui, Arial, sans-serif; padding: 1.2rem; max-width: 1000px; margin: 0 auto; }
     .flash { padding: .6rem .8rem; border-radius: 8px; margin:.4rem 0; }
     .flash.error { background:#ffe8e8; color:#900; }
     .flash.success { background:#e8ffed; color:#064; }
-    form { display:grid; gap:.6rem; max-width: 520px; }
-    input, button { padding:.6rem .7rem; font-size:1rem; }
+    form { display:grid; gap:.6rem; max-width: 680px; }
+    input, button, select { padding:.6rem .7rem; font-size:1rem; }
     a { color:#06c; text-decoration:none; }
+    nav { display:flex; gap:1rem; padding:.4rem 0 1rem; flex-wrap: wrap; }
+    nav a { padding:.35rem .6rem; border-radius:8px; border:1px solid #ddd; }
   </style>
 </head>
 <body>
+  <nav>
+    <a href="/">API</a>
+    <a href="/auth/login">Login</a>
+    <a href="/account/ptp">Cuenta PTP</a>
+    <a href="/dashboard/reservar">Reservar/Vigilar</a>
+    <a href="/dashboard/estado">Estado histórico</a>
+    <a href="/dashboard/precios-cs">Precios Castellón</a>
+    <a href="/dashboard/precios-ciudad">Precios por ciudad</a>
+    <a href="/admin">Administración</a>
+  </nav>
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for cat, msg in messages %}

@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone, timedelta
 from app.db import fetch_all, fetch_one
-from app.ptp import _selenium_login_and_store_cookies
+from app.ptp import selenium_login_and_store_cookies
 from app.utils.crypto import decrypt_str
 
 def due_accounts():
@@ -19,7 +19,7 @@ def main():
     for r in due_accounts():
         pwd = decrypt_str(r["PasswordEnc"])
         print(f"[cookie-refresh] Renovando AccountId={r['AccountId']} ({r['EmailPTP']})...")
-        total, ok = _selenium_login_and_store_cookies(r["AccountId"], r["EmailPTP"], pwd)
+        total, ok = selenium_login_and_store_cookies(r["AccountId"], r["EmailPTP"], pwd)
         print(f"[cookie-refresh] Guardadas={total} auth_token={'OK' if ok else 'NO'}")
 
 if __name__ == "__main__":

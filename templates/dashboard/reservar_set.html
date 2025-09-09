@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Conjunto: {{ s.Nombre }}</h1>
+<p>Toma preferida: <b>{{ s.TomaPreferida }}</b> — Ventana cambio: <b>{{ s.VentanaCambioMin }} min</b> — Estado: <b>{{ 'Activo' if s.Activo else 'Inactivo' }}</b></p>
+
+<form method="post" action="{{ url_for('resv.reservar_set_toggle', setid=s.SetId) }}">
+  <button type="submit">{{ 'Desactivar' if s.Activo else 'Activar' }}</button>
+</form>
+
+<h3>Items</h3>
+<table border="1" cellpadding="6">
+  <tr><th>Prioridad</th><th>Slug/ExternalIdPTP</th><th>Socket pref.</th><th>Notas</th></tr>
+  {% for it in items %}
+  <tr>
+    <td>{{ it.Prioridad }}</td>
+    <td>{{ it.ExternalIdPTP }}</td>
+    <td>{{ it.PreferredSocket or '-' }}</td>
+    <td>{{ it.Notas or '' }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">Sin items aún.</td></tr>
+  {% endfor %}
+</table>
+
+<h3>Añadir item</h3>
+<form method="post" action="{{ url_for('resv.reservar_set_item_add', setid=s.SetId) }}">
+  <label>URL o slug del punto PTP</label>
+  <input name="slug" placeholder="https://placetoplug.com/es/.../VIMEL_-_CASTELLON_06 o 'VIMEL_-_CASTELLON_06'" required />
+  <label>Prioridad (1=primero)</label>
+  <input name="prioridad" type="number" min="1" value="1" />
+  <label>Socket preferido para este punto (opcional)</label>
+  <select name="socket">
+    <option value="">(sin preferencia)</option>
+    <option value="A">A</option>
+    <option value="B">B</option>
+  </select>
+  <label>Notas</label>
+  <input name="notas" />
+  <button type="submit">Añadir</button>
+</form>
+{% endblock %}

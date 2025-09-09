@@ -301,3 +301,7 @@ def ptp_refresh_now():
 
     flash(f"Cookies guardadas: {total_saved}. auth_token={'OK' if has_auth else 'NO'}", "success")
     return redirect(url_for("ptp.ptp_get"))
+
+# Alias estable para workers (evita ImportError por nombres privados)
+def selenium_login_and_store_cookies(*args, **kwargs):
+    return _selenium_login_and_store_cookies(*args, **kwargs)

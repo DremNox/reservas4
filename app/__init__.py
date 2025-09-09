@@ -1,6 +1,11 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
+from .auth import bp as auth_bp
+from .ptp import bp as ptp_bp
+from .dashboard import bp as dash_bp
+from .reservar import bp as resv_bp
+from .admin import bp as admin_bp
 
 def create_app():
     load_dotenv()  # carga .env si existe
@@ -15,6 +20,11 @@ def create_app():
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(ptp_bp,  url_prefix="/account")
+    app.register_blueprint(dash_bp)      # /dashboard/*
+    app.register_blueprint(resv_bp)      # /dashboard/reservar...
+    app.register_blueprint(admin_bp)     # /admin
 
     # Rutas simples
     @app.get("/")
