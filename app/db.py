@@ -12,6 +12,7 @@ def get_engine() -> Engine:
 
     driver = os.getenv("ODBC_DRIVER", "ODBC Driver 18 for SQL Server")
     host = os.getenv("SQLSERVER_HOST", "orion")
+    port = os.getenv("SQLSERVER_PORT", "1433")
     db   = os.getenv("SQLSERVER_DATABASE", "reservas3")
     user = os.getenv("SQLSERVER_USER")
     pwd  = os.getenv("SQLSERVER_PASSWORD")
@@ -21,8 +22,9 @@ def get_engine() -> Engine:
 
     assert user and pwd, "Faltan credenciales SQL en variables de entorno"
 
+    # mssql+pyodbc soporta host:port sin problemas
     conn_str = (
-        f"mssql+pyodbc://{quote_plus(user)}:{quote_plus(pwd)}@{quote_plus(host)}/"
+        f"mssql+pyodbc://{quote_plus(user)}:{quote_plus(pwd)}@{host}:{port}/"
         f"{quote_plus(db)}"
         f"?driver={quote_plus(driver)}&Encrypt={encrypt}&TrustServerCertificate={trust}"
     )
