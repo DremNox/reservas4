@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from passlib.hash import bcrypt
+from passlib.hash import pbkdf2_sha256 as hasher
 from .db import fetch_one
 
 bp = Blueprint("auth", __name__, template_folder="../templates/auth")
@@ -19,7 +19,7 @@ def login_post():
         WHERE Username = :u
     """, u=username)
 
-    if not row or not row["IsActive"] or not bcrypt.verify(password, row["PasswordHash"]):
+    if not row or not row["IsActive"] or not hasher.verify(password, row["PasswordHash"]):
         flash("Usuario o contraseña no válidos", "error")
         return redirect(url_for("auth.login_get"))
 
