@@ -1,2 +1,8 @@
 Flask>=3.0,<4
 gunicorn>=21.2,<22
+python-dotenv>=1.0
+SQLAlchemy>=2.0
+pyodbc>=5.1
+passlib[bcrypt]>=1.7
+cryptography>=43.0
+selenium>=4.23

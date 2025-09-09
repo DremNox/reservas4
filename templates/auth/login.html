@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Login Reservas</h1>
+<form method="post" action="{{ url_for('auth.login_post') }}">
+  <label>Usuario</label>
+  <input name="username" required autofocus />
+  <label>Contraseña</label>
+  <input name="password" type="password" required />
+  <button type="submit">Entrar</button>
+</form>
+{% endblock %}

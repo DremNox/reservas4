@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Reservas 4.0</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; padding: 1.2rem; max-width: 860px; margin: 0 auto; }
+    .flash { padding: .6rem .8rem; border-radius: 8px; margin:.4rem 0; }
+    .flash.error { background:#ffe8e8; color:#900; }
+    .flash.success { background:#e8ffed; color:#064; }
+    form { display:grid; gap:.6rem; max-width: 520px; }
+    input, button { padding:.6rem .7rem; font-size:1rem; }
+    a { color:#06c; text-decoration:none; }
+  </style>
+</head>
+<body>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="flash {{cat}}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</body>
+</html>
