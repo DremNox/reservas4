@@ -1,26 +1,188 @@
+# app/ptp.py
 import os
+import json
 import time
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from pathlib import Path
+from typing import List, Dict, Any
+
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+from flask import abort
+
 from .db import fetch_one, fetch_all, execute
 from .utils.crypto import encrypt_str, decrypt_str
 
+# --- Selenium ---
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    ElementNotInteractableException,
+)
+
+bp = Blueprint("ptp", __name__)  # usamos la carpeta global "templates/"
+
+# ------------------- CONFIG / CONSTANTES -------------------
+HEADLESS = os.getenv("SELENIUM_HEADLESS", "1") == "1"
+PAGELOAD_TIMEOUT = int(os.getenv("SELENIUM_PAGELOAD_TIMEOUT", "60"))
+EXPLICIT_WAIT = int(os.getenv("SELENIUM_WAIT_TIMEOUT", "30"))
+IMPLICIT_WAIT = int(os.getenv("SELENIUM_IMPLICIT_WAIT", "5"))
 
 PTP_LOGIN_URL = "https://account.placetoplug.com/es/entrar?from=placetoplug.com%2Fes"
-SEL_WAIT = int(os.getenv("SELENIUM_WAIT_TIMEOUT", "30"))
-SEL_PAGELOAD = int(os.getenv("SELENIUM_PAGELOAD_TIMEOUT", "60"))
 
-bp = Blueprint("ptp", __name__, template_folder="../templates/account")
+# XPaths que nos pasaste
+X_EMAIL = "//input[@placeholder='Email']"
+X_BTN_SIGUIENTE_EMAIL = "//div[@class='outlet']//div[1]//div[2]//button[1]"
+X_PASSWORD = "//input[@placeholder='Contraseña']"
+X_BTN_SIGUIENTE_PASS = "//body//app-root//div[2]//div[2]//button[1]"
 
+# Rutas útiles para dumps/screenshot de depuración
+LOGS_DIR = Path("/opt/reservas4/logs")
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+COOKIES_JSON_PATH = LOGS_DIR / "ptp_cookies_dump.json"
+
+
+# ------------------- HELPERS WEB -------------------
 def _require_login():
     if not session.get("uid"):
-        from flask import abort
         abort(401)
 
+
+# ------------------- UTILIDADES SELENIUM -------------------
+def create_driver(headless: bool = HEADLESS) -> webdriver.Chrome:
+    """Crea un driver de Chrome con/ sin interfaz usando selenium-manager."""
+    chrome_options = ChromeOptions()
+    if headless:
+        chrome_options.add_argument("--headless=new")  # headless moderno
+    # Recomendados en servidores
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    # Ventana razonable para evitar layouts móviles / overlays
+    chrome_options.add_argument("--window-size=1200,900")
+
+    driver = webdriver.Chrome(service=ChromeService(), options=chrome_options)
+    driver.set_page_load_timeout(PAGELOAD_TIMEOUT)
+    driver.implicitly_wait(IMPLICIT_WAIT)
+    return driver
+
+
+def wait_clickable(driver, xpath: str, timeout: int = EXPLICIT_WAIT):
+    return WebDriverWait(driver, timeout).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+
+
+def wait_visible(driver, xpath: str, timeout: int = EXPLICIT_WAIT):
+    return WebDriverWait(driver, timeout).until(EC.visibility_of_element_located((By.XPATH, xpath)))
+
+
+def dump_cookies(driver) -> List[Dict[str, Any]]:
+    """Convierte cookies Selenium -> lista JSON serializable (estándar)."""
+    raw = driver.get_cookies()
+    cookies: List[Dict[str, Any]] = []
+    for c in raw:
+        cookies.append({
+            "name": c.get("name"),
+            "value": c.get("value"),
+            "domain": c.get("domain"),
+            "path": c.get("path"),
+            "expiry": c.get("expiry"),        # epoch segs o None
+            "secure": bool(c.get("secure", False)),
+            "httpOnly": bool(c.get("httpOnly", False)),
+            "sameSite": c.get("sameSite"),    # Lax/Strict/None o None
+        })
+    return cookies
+
+
+def save_json(cookies: List[Dict[str, Any]], path: Path) -> None:
+    path.write_text(json.dumps(cookies, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def maybe_accept_cookies_banner(driver):
+    """Intenta aceptar banners de cookies comunes; ignora si no hay."""
+    candidates = [
+        "//button[contains(., 'Aceptar')]",
+        "//button[contains(., 'Aceptar todas')]",
+        "//button[contains(., 'Acepto')]",
+        "//button[contains(., 'Consentir')]",
+        "//*[@id='onetrust-accept-btn-handler']",
+    ]
+    for xp in candidates:
+        try:
+            btns = driver.find_elements(By.XPATH, xp)
+            if btns:
+                try:
+                    btns[0].click()
+                    time.sleep(0.5)
+                    break
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+
+# ------------------- FLUJO DE LOGIN PTP -------------------
+def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]:
+    driver = create_driver(HEADLESS)
+    try:
+        # 1) Cargar página de login
+        driver.get(PTP_LOGIN_URL)
+        maybe_accept_cookies_banner(driver)
+
+        # 2) Email
+        email_box = wait_visible(driver, X_EMAIL)
+        try:
+            email_box.clear()
+        except Exception:
+            email_box.send_keys(Keys.CONTROL, "a")
+            email_box.send_keys(Keys.DELETE)
+        email_box.send_keys(email)
+
+        btn_siguiente_email = wait_clickable(driver, X_BTN_SIGUIENTE_EMAIL)
+        btn_siguiente_email.click()
+
+        # 3) Password (tras “siguiente” del email)
+        password_box = wait_visible(driver, X_PASSWORD)
+        try:
+            password_box.clear()
+        except Exception:
+            password_box.send_keys(Keys.CONTROL, "a")
+            password_box.send_keys(Keys.DELETE)
+        password_box.send_keys(password)
+
+        btn_siguiente_pass = wait_clickable(driver, X_BTN_SIGUIENTE_PASS)
+        btn_siguiente_pass.click()
+
+        # 4) Esperar a “login hecho”: cookies de sesión o cambio de URL
+        WebDriverWait(driver, EXPLICIT_WAIT).until(
+            lambda d: ("session" in "".join([c["name"].lower() for c in d.get_cookies()]))
+                      or d.current_url != PTP_LOGIN_URL
+        )
+        time.sleep(2)  # por si hay redirecciones extra
+
+        # 5) Volcado de cookies
+        cookies = dump_cookies(driver)
+        # Debug opcional
+        # save_json(cookies, COOKIES_JSON_PATH)
+        return cookies
+
+    except (TimeoutException, NoSuchElementException, ElementNotInteractableException) as e:
+        ts = int(time.time())
+        try:
+            driver.save_screenshot(str(LOGS_DIR / f"login_error_{ts}.png"))
+        except Exception:
+            pass
+        raise RuntimeError(f"Error durante login PTP: {e}") from e
+    finally:
+        driver.quit()
+
+
+# ------------------- VISTAS -------------------
 @bp.get("/ptp")
 def ptp_get():
     _require_login()
@@ -31,6 +193,7 @@ def ptp_get():
         WHERE a.UserId = :uid
     """, uid=session["uid"])
     return render_template("account/ptp.html", account=account)
+
 
 @bp.post("/ptp/save")
 def ptp_save():
@@ -53,6 +216,13 @@ def ptp_save():
                         uid=session["uid"], e=email)
 
     # Guardar credencial cifrada
+    try:
+        enc = encrypt_str(password)  # VARBINARY(MAX)
+    except Exception as e:
+        current_app.logger.error("Error cifrando PTP: %s", e)
+        flash("No se pudo cifrar la contraseña PTP. Revisa FERNET_KEY en .env.", "error")
+        return redirect(url_for("ptp.ptp_get"))
+
     execute("""
         MERGE dbo.CredencialesPTP AS t
         USING (SELECT :acc AS AccountId) AS s
@@ -60,10 +230,11 @@ def ptp_save():
         WHEN MATCHED THEN UPDATE SET PasswordEnc=:p, Algorithm=N'fernet-v1', UpdatedAt=SYSUTCDATETIME()
         WHEN NOT MATCHED THEN INSERT (AccountId, PasswordEnc, Algorithm)
              VALUES (s.AccountId, :p, N'fernet-v1');
-    """, acc=acc["AccountId"], p=encrypt_str(password))
+    """, acc=acc["AccountId"], p=enc)
 
     flash("Cuenta PTP guardada en BD (password cifrada).", "success")
     return redirect(url_for("ptp.ptp_get"))
+
 
 @bp.post("/ptp/refresh-now")
 def ptp_refresh_now():
@@ -82,116 +253,51 @@ def ptp_refresh_now():
     email = account["EmailPTP"]
     password = decrypt_str(account["PasswordEnc"])
 
-    total, auth_cookie = _selenium_login_and_store_cookies(account["AccountId"], email, password)
-    if total > 0:
-        flash(f"Cookies guardadas: {total}. auth_token={'OK' if auth_cookie else 'NO'}", "success")
-    else:
-        flash("No se guardaron cookies.", "error")
+    try:
+        cookies = login_and_collect_cookies(email, password)
+    except Exception as e:
+        current_app.logger.error("Selenium login error: %s", e)
+        flash("Fallo al iniciar sesión en PlaceToPlug (ver logs).", "error")
+        return redirect(url_for("ptp.ptp_get"))
 
-    return redirect(url_for("ptp.ptp_get"))
-
-def _make_driver():
-    browser = (os.getenv("SELENIUM_BROWSER") or "auto").lower()
-    headless = os.getenv("SELENIUM_HEADLESS", "1") == "1"
-
-    def try_chrome():
-        from selenium.webdriver.chrome.options import Options as ChromeOptions
-        opts = ChromeOptions()
-        if headless:
-            opts.add_argument("--headless=new")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("--disable-dev-shm-usage")
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("--window-size=1280,1024")
-        return webdriver.Chrome(options=opts)
-
-    def try_firefox():
-        from selenium.webdriver.firefox.options import Options as FFOptions
-        opts = FFOptions()
-        if headless:
-            opts.add_argument("-headless")
-        return webdriver.Firefox(options=opts)
-
-    if browser in ("auto", "chrome"):
-        try:
-            return try_chrome()
-        except Exception:
-            if browser == "chrome":
-                raise
-    # fallback
-    return try_firefox()
-
-def _selenium_login_and_store_cookies(account_id: int, email: str, password: str):
-    """Hace login en PTP y almacena TODAS las cookies en dbo.CookiesPTP con IsCurrent=1."""
-    driver = _make_driver()
-    driver.set_page_load_timeout(SEL_PAGELOAD)
-    wait = WebDriverWait(driver, SEL_WAIT)
+    # Guardar cookies en BD: invalidar vigentes por (AccountId, Name, Domain, Path) y crear nuevas
     total_saved = 0
     has_auth = False
-    try:
-        driver.get(PTP_LOGIN_URL)
-        # Email
-        email_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Email']")))
-        email_input.clear()
-        email_input.send_keys(email)
+    for c in cookies:
+        name = c.get("name")
+        value = c.get("value")
+        domain = c.get("domain") or "placetoplug.com"
+        path = c.get("path") or "/"
+        expiry = c.get("expiry")
+        httpOnly = 1 if c.get("httpOnly") else 0
+        secure = 1 if c.get("secure") else 0
+        sameSite = c.get("sameSite")
 
-        # Botón siguiente (email)
-        btn_next_email = driver.find_element(By.XPATH, "//div[@class='outlet']//div[1]//div[2]//button[1]")
-        btn_next_email.click()
+        # Convertir expiry (epoch) -> datetime
+        exp_dt = None
+        if isinstance(expiry, (int, float)):
+            exp_dt = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
 
-        # Password
-        pwd_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Contraseña']")))
-        pwd_input.clear()
-        pwd_input.send_keys(password)
+        # invalidar anteriores "vigentes"
+        execute("""
+            UPDATE dbo.CookiesPTP
+            SET IsCurrent = 0, IsValid = 0
+            WHERE AccountId=:aid AND Name=:n AND Domain=:d AND Path=:p AND IsCurrent=1
+        """, aid=account["AccountId"], n=name, d=domain, p=path)
 
-        # Botón entrar (password)
-        btn_next_pwd = wait.until(EC.element_to_be_clickable((By.XPATH, "//body//app-root//div[2]//div[2]//button[1]")))
-        btn_next_pwd.click()
+        # insertar nueva vigente
+        execute("""
+            INSERT INTO dbo.CookiesPTP
+            (AccountId, Name, Value, Domain, Path, ExpiryUtc, Secure, HttpOnly, SameSite,
+             LastLoginUtc, LastRefreshUtc, IsValid, IsCurrent)
+            VALUES
+            (:aid, :n, :v, :d, :p, :exp, :sec, :httponly, :ss, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, 1)
+        """, aid=account["AccountId"], n=name, v=value, d=domain, p=path, exp=exp_dt,
+             sec=secure, httponly=httpOnly, ss=sameSite)
 
-        # Espera a redirección/estado logueado
-        # Tip: abrir placetoplug.com para asegurar que el dominio de cookies es correcto
-        wait.until(lambda d: "account.placetoplug.com" in d.current_url or "placetoplug.com" in d.current_url)
-        driver.get("https://placetoplug.com/es")
-        time.sleep(2)
+        total_saved += 1
+        if name and name.lower() == "auth_token" and value:
+            has_auth = True
 
-        # Recoger cookies
-        cookies = driver.get_cookies()  # [{'name','value','domain','path','expiry','httpOnly','secure','sameSite'...}]
-        for c in cookies:
-            name = c.get("name")
-            value = c.get("value")
-            domain = c.get("domain") or "placetoplug.com"
-            path = c.get("path") or "/"
-            expiry = c.get("expiry")  # epoch seconds
-            httpOnly = bool(c.get("httpOnly"))
-            secure = bool(c.get("secure"))
-            sameSite = c.get("sameSite")
-
-            expiry_dt = None
-            if isinstance(expiry, (int, float)):
-                expiry_dt = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
-
-            # invalidar vigentes anteriores de la misma cookie
-            execute("""
-                UPDATE dbo.CookiesPTP
-                SET IsCurrent = 0, IsValid = 0
-                WHERE AccountId=:aid AND Name=:n AND Domain=:d AND Path=:p AND IsCurrent=1
-            """, aid=account_id, n=name, d=domain, p=path)
-
-            # insertar nueva vigente
-            execute("""
-                INSERT INTO dbo.CookiesPTP
-                (AccountId, Name, Value, Domain, Path, ExpiryUtc, Secure, HttpOnly, SameSite,
-                 LastLoginUtc, LastRefreshUtc, IsValid, IsCurrent)
-                VALUES
-                (:aid, :n, :v, :d, :p, :exp, :sec, :httponly, :ss, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, 1)
-            """, aid=account_id, n=name, v=value, d=domain, p=path, exp=expiry_dt,
-                 sec=1 if secure else 0, httponly=1 if httpOnly else 0, ss=sameSite)
-
-            total_saved += 1
-            if name.lower() == "auth_token" and value:
-                has_auth = True
-
-        return total_saved, has_auth
-
-    finally:
-        driver.quit()
+    flash(f"Cookies guardadas: {total_saved}. auth_token={'OK' if has_auth else 'NO'}", "success")
+    return redirect(url_for("ptp.ptp_get"))
