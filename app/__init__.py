@@ -21,13 +21,22 @@ def create_app():
     app.register_blueprint(resv_bp)      # /dashboard/reservar...
     app.register_blueprint(admin_bp)     # /admin
 
-    # Rutas simples
+    # Home -> HTML
     @app.get("/")
     def index():
-        return {"status": "ok", "message": "Hola Reservas 4.0"}
+        return render_template("index.html", titulo="Inicio")
 
+    # Healthcheck simple (texto)
     @app.get("/healthz")
     def health():
         return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
+    # (Opcional) manejo de errores a HTML
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        return render_template("errors/500.html"), 500
     return app
