@@ -17,7 +17,6 @@ def create_app():
     # Blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
-    app.register_blueprint(ptp_bp,  url_prefix="/account")
     app.register_blueprint(dash_bp)      # /dashboard/*
     app.register_blueprint(resv_bp)      # /dashboard/reservar...
     app.register_blueprint(admin_bp)     # /admin
