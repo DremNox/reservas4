@@ -37,4 +37,8 @@ def create_app():
 
     return app
 
+<<<<<<< HEAD
 #app = create_app()
+=======
+
+>>>>>>> e456c4f (correcion errores)
