@@ -36,9 +36,3 @@ def create_app():
         return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
     return app
-
-<<<<<<< HEAD
-#app = create_app()
-=======
-
->>>>>>> e456c4f (correcion errores)
