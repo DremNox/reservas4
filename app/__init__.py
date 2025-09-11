@@ -20,7 +20,6 @@ def create_app():
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
-    app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
     app.register_blueprint(dash_bp)      # /dashboard/*
     app.register_blueprint(resv_bp)      # /dashboard/reservar...
