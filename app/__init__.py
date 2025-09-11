@@ -10,7 +10,7 @@ from .admin import bp as admin_bp
 def create_app():
     load_dotenv()  # carga .env si existe
 
-    app = Flask(__name__, template_folder="../templates", static_folder="../static")
+    app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["TZ"] = os.getenv("TZ", "Europe/Madrid")
 
@@ -24,7 +24,7 @@ def create_app():
     # Home -> HTML
     @app.get("/")
     def index():
-        return render_template("index.html", titulo="Inicio")
+        return render_template("base.html", titulo="Inicio")
 
     # Healthcheck simple (texto)
     @app.get("/healthz")
