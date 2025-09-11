@@ -15,9 +15,6 @@ def create_app():
     app.config["TZ"] = os.getenv("TZ", "Europe/Madrid")
 
     # Blueprints
-    from .auth import bp as auth_bp
-    from .ptp import bp as ptp_bp
-
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
