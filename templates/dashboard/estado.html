@@ -1,59 +1,39 @@
 {% extends "dashboard/_layout.html" %}
-{% set titulo = "Estado histórico" %}
-{% set subtitulo = "Snapshots de Libre / Ocupado / Reservado" %}
+{% set titulo = "Estado de puntos" %}
+{% set subtitulo = "Actualiza ahora el estado de todos tus conectores activos" %}
 
 {% block content %}
-<div class="row g-3">
-  <div class="col-12 col-md-4">
-    <div class="card card-soft h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="text-secondary small">Puntos vigilados</div>
-            <div class="display-6 fw-semibold">--</div>
-          </div>
-          <i class="bi bi-binoculars fs-3 text-secondary"></i>
-        </div>
-        <div class="small text-secondary mt-2">Activos ahora mismo</div>
-      </div>
+<div class="card card-soft">
+  <div class="card-body d-flex align-items-center justify-content-between">
+    <div>
+      <div class="fw-semibold">Refrescar estados</div>
+      <div class="text-secondary small">Lanza el scraping con tus cookies actuales.</div>
     </div>
-  </div>
-  <div class="col-12 col-md-4">
-    <div class="card card-soft h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="text-secondary small">Disponibles</div>
-            <div class="display-6 fw-semibold">--</div>
-          </div>
-          <i class="bi bi-check2-circle fs-3 text-success"></i>
-        </div>
-        <div class="small text-secondary mt-2">Tomas libres última lectura</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-md-4">
-    <div class="card card-soft h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="text-secondary small">Reservas hoy</div>
-            <div class="display-6 fw-semibold">--</div>
-          </div>
-          <i class="bi bi-calendar2-check fs-3 text-info"></i>
-        </div>
-        <div class="small text-secondary mt-2">Confirmadas por el sistema</div>
-      </div>
-    </div>
+    <button id="btn-refresh-estados" class="btn btn-primary">Refrescar ahora</button>
   </div>
 </div>
 
-<div class="card card-soft mt-3">
-  <div class="card-body">
-    <h2 class="h6 mb-3">Actividad reciente</h2>
-    <ul class="list-group list-group-flush list-activity">
-      <li class="list-group-item">Sin datos todavía.</li>
-    </ul>
-  </div>
-</div>
+<div id="refresh-result" class="mt-3"></div>
+
+<script>
+document.getElementById('btn-refresh-estados').addEventListener('click', async () => {
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = 'Actualizando...';
+  try {
+    const res = await fetch('{{ url_for("dash.estado_refresh") }}', { method: 'POST' });
+    const data = await res.json();
+    const box = document.getElementById('refresh-result');
+    if (!data.ok) {
+      box.innerHTML = `<div class="alert alert-danger">⚠️ ${data.error || 'Error desconocido'}</div>`;
+    } else {
+      box.innerHTML = `<div class="alert alert-success">✅ Actualizados ${data.count} conectores.</div>`;
+    }
+  } catch (e) {
+    document.getElementById('refresh-result').innerHTML =
+      `<div class="alert alert-danger">⚠️ Fallo al refrescar: ${e}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Refrescar ahora';
+  }
+});
+</script>
 {% endblock %}

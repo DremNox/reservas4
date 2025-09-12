@@ -1,6 +1,8 @@
 # app/puntos.py
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, current_app
 from .db import fetch_all, fetch_one, execute
+from .estado import scrape_conector_estado
+from flask import jsonify
 
 bp = Blueprint("puntos", __name__, template_folder="../templates")
 
@@ -100,3 +102,39 @@ def conector_toggle(punto_id: int, conector_id: int):
     execute("UPDATE dbo.Conectores SET Activo=:a WHERE ConectorId=:cid", a=new, cid=conector_id)
     flash("Conector " + ("activado" if new else "desactivado") + ".", "success")
     return redirect(url_for("puntos.punto_detail", punto_id=punto_id))
+
+@bp.post("/dashboard/puntos/<int:punto_id>/refresh")
+def punto_refresh(punto_id: int):
+    _require_login()
+    # validar punto del usuario
+    p = fetch_one("SELECT PuntoId FROM dbo.Puntos WHERE PuntoId=:id AND UserId=:uid",
+                  id=punto_id, uid=session["uid"])
+    if not p: abort(404)
+
+    acc = fetch_all("""
+      SELECT a.AccountId
+      FROM dbo.CuentasPTP a
+      JOIN dbo.CredencialesPTP c ON c.AccountId=a.AccountId
+      WHERE a.UserId=:uid
+      ORDER BY a.AccountId ASC
+    """, uid=session["uid"])
+    if not acc:
+      return jsonify({"ok": False, "error": "Configura tu cuenta PTP primero."}), 400
+    account_id = acc[0]["AccountId"]
+
+    conns = fetch_all("""
+      SELECT ConectorId, UrlConector
+      FROM dbo.Conectores
+      WHERE PuntoId=:pid AND Activo=1
+      ORDER BY Orden, ConectorId
+    """, pid=punto_id)
+
+    results = []
+    for c in conns:
+        try:
+            estado, hint = scrape_conector_estado(account_id, c["ConectorId"], c["UrlConector"])
+            results.append({"conector_id": c["ConectorId"], "estado": estado, "hint": hint})
+        except Exception as e:
+            results.append({"conector_id": c["ConectorId"], "estado": "Error", "hint": str(e)})
+
+    return jsonify({ "ok": True, "count": len(results), "results": results })

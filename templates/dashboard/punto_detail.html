@@ -3,6 +3,10 @@
 {% set subtitulo = "Conectores y estado actual" %}
 
 {% block content %}
+<div class="mb-3 d-flex justify-content-end">
+  <button id="btn-refresh-punto" class="btn btn-outline-primary">Refrescar estados de este punto</button>
+</div>
+<div id="punto-refresh-result"></div>
 <div class="card card-soft mb-4">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center">
@@ -92,3 +96,26 @@
   </div>
 </div>
 {% endblock %}
+<script>
+document.getElementById('btn-refresh-punto').addEventListener('click', async () => {
+  const btn = event.currentTarget;
+  btn.disabled = true; btn.textContent = 'Actualizando...';
+  try {
+    const res = await fetch('{{ url_for("puntos.punto_refresh", punto_id=p.PuntoId) }}', { method: 'POST' });
+    const data = await res.json();
+    const box = document.getElementById('punto-refresh-result');
+    if (!data.ok) {
+      box.innerHTML = `<div class="alert alert-danger">⚠️ ${data.error || 'Error desconocido'}</div>`;
+    } else {
+      box.innerHTML = `<div class="alert alert-success">✅ Actualizados ${data.count} conectores de este punto.</div>`;
+      // Si quieres, aquí podrías hacer location.reload() para ver los nuevos estados en la tabla:
+      // setTimeout(() => location.reload(), 800);
+    }
+  } catch (e) {
+    document.getElementById('punto-refresh-result').innerHTML =
+      `<div class="alert alert-danger">⚠️ Fallo al refrescar: ${e}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Refrescar estados de este punto';
+  }
+});
+</script>
