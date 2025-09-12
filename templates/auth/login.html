@@ -1,11 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Login Reservas</h1>
-<form method="post" action="{{ url_for('auth.login_post') }}">
-  <label>Usuario</label>
-  <input name="username" required autofocus />
-  <label>Contraseña</label>
-  <input name="password" type="password" required />
-  <button type="submit">Entrar</button>
-</form>
+<section class="row justify-content-center">
+  <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+    <div class="card card-glass shadow-xl border-0 overflow-hidden">
+      <div class="card-body p-4 p-md-5">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <div class="brand-icon rounded-3 d-inline-flex align-items-center justify-content-center">
+            <i class="bi bi-lightning-charge-fill"></i>
+          </div>
+          <div>
+            <h1 class="h4 mb-0 fw-semibold">Reservas 4.0</h1>
+            <small class="text-secondary">Acceso seguro</small>
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('auth.login_post') }}" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label for="username" class="form-label">Usuario</label>
+            <div class="input-group input-group-lg">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+              <input id="username" name="username" class="form-control"
+                     placeholder="Tu usuario" required autofocus>
+              <div class="invalid-feedback">Introduce tu usuario.</div>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label for="password" class="form-label">Contraseña</label>
+            <div class="input-group input-group-lg">
+              <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+              <input id="password" name="password" type="password" class="form-control"
+                     placeholder="••••••••" required>
+              <button class="btn btn-outline-secondary" type="button" id="btnTogglePwd" aria-label="Mostrar u ocultar contraseña">
+                <i class="bi bi-eye"></i>
+              </button>
+              <div class="invalid-feedback">Introduce tu contraseña.</div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="" id="remember" disabled>
+              <label class="form-check-label" for="remember">Recuérdame</label>
+            </div>
+            <!-- Enlace a recuperar cuando lo implementes -->
+            <a class="small link-secondary text-decoration-none" href="#" tabindex="-1">¿Olvidaste la contraseña?</a>
+          </div>
+
+          <div class="d-grid">
+            <button class="btn btn-primary btn-lg shadow" type="submit">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card-footer bg-transparent border-0 px-5 pb-4">
+        <p class="mb-0 small text-secondary text-center">
+          © {{  (now().year if now else 2025)  }} Reservas 4.0 — Sesión cifrada
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Validación Bootstrap
+  (() => {
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', e => {
+      if (!form.checkValidity()) { e.preventDefault(); e.stopPropagation(); }
+      form.classList.add('was-validated');
+    }, false);
+  })();
+  // Mostrar/Ocultar contraseña
+  document.getElementById('btnTogglePwd')?.addEventListener('click', () => {
+    const i = document.getElementById('password');
+    const btn = document.getElementById('btnTogglePwd').querySelector('i');
+    i.type = i.type === 'password' ? 'text' : 'password';
+    btn.classList.toggle('bi-eye');
+    btn.classList.toggle('bi-eye-slash');
+  });
+</script>
 {% endblock %}

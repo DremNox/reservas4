@@ -1,0 +1,51 @@
+:root{
+  --glass-bg: rgba(255,255,255,0.06);
+  --glass-brd: rgba(255,255,255,0.18);
+  --blob-a: #7c4dff;
+  --blob-b: #00e5ff;
+  --blob-c: #00c853;
+}
+
+/* Fondo con gradiente suave */
+.bg-gradient{
+  background: radial-gradient(1200px 600px at 20% 10%, rgba(124,77,255,.25), transparent 60%),
+              radial-gradient(1000px 600px at 80% 80%, rgba(0,229,255,.20), transparent 60%),
+              radial-gradient(900px 500px at 0% 100%, rgba(0,200,83,.18), transparent 60%),
+              #0b0f1a;
+  position: relative;
+}
+
+/* blobs animados */
+.bg-blobs{position:fixed; inset:0; overflow:hidden; z-index:-1;}
+.bg-blobs span{
+  position:absolute; width:46vmin; height:46vmin; filter:blur(60px); opacity:.22; border-radius:50%;
+  animation: float 18s ease-in-out infinite;
+}
+.bg-blobs span:nth-child(1){left:-8vmin; top:-8vmin; background:var(--blob-a);}
+.bg-blobs span:nth-child(2){right:-10vmin; bottom:-8vmin; background:var(--blob-b); animation-delay: -6s;}
+.bg-blobs span:nth-child(3){left:30%; top:60%; background:var(--blob-c); animation-delay: -12s;}
+@keyframes float{
+  0%,100%{transform:translate3d(0,0,0) scale(1)}
+  50%{transform:translate3d(2rem,-1rem,0) scale(1.05)}
+}
+
+/* Tarjeta de vidrio */
+.card-glass{
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--glass-brd);
+  border-radius: 1.25rem;
+}
+
+.brand-icon{
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--blob-a), var(--blob-b));
+  color: #fff; font-size: 1.2rem;
+}
+
+/* Mejoras de controles grandes */
+.input-group-lg>.form-control, .input-group-lg>.input-group-text, .input-group-lg>.btn{
+  border-radius: .9rem;
+}
+.btn-lg{ border-radius: .9rem; }
