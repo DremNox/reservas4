@@ -1,0 +1,58 @@
+{% extends "dashboard/_layout.html" %}
+{% set titulo = "Puntos de carga" %}
+{% set subtitulo = "Gestiona tus ubicaciones y sus conectores" %}
+
+{% block content %}
+<div class="card card-soft mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Añadir punto</h5>
+    <form method="post" action="{{ url_for('puntos.puntos_add') }}" class="row g-2">
+      <div class="col-md-4">
+        <input class="form-control" name="nombre" placeholder="Nombre del punto (ej. Adif Castellón)" required>
+      </div>
+      <div class="col-md-6">
+        <input class="form-control" name="notas" placeholder="Notas (opcional)">
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-primary">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card card-soft">
+  <div class="card-body">
+    <h5 class="mb-3">Mis puntos</h5>
+
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 60%">Nombre</th>
+            <th class="text-center">Conectores</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in puntos %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ p.Nombre }}</div>
+              {% if p.Notas %}<div class="text-secondary small">{{ p.Notas }}</div>{% endif %}
+            </td>
+            <td class="text-center">{{ p.NumConectores }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('puntos.punto_detail', punto_id=p.PuntoId) }}">
+                Abrir
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-secondary">Aún no tienes puntos. Crea el primero arriba.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
