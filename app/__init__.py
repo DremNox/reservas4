@@ -25,7 +25,7 @@ def create_app():
     def index():
         # Evita 500 si no tienes index.html todavía
         try:
-            return render_template("index.html", titulo="Inicio")
+            return render_template("base_login.html", titulo="Inicio")
         except Exception:
             return "Reservas 4.0 – Home (pendiente index.html)", 200
 
