@@ -305,6 +305,7 @@ def store_cookies_in_db(account_id: int, cookies: List[Dict[str, Any]]) -> tuple
     Devuelve (total_guardadas, hay_auth_token)."""
     total_saved = 0
     has_auth = False
+    name_stats = {}
 
     for c in cookies:
         name = c.get("name")

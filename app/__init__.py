@@ -22,15 +22,9 @@ def create_app():
     app.register_blueprint(dash_bp)
     app.register_blueprint(resv_bp)
     app.register_blueprint(admin_bp)
-    try:
-        setup_logging(app)
-    except Exception as e:
-        import logging as stdlog
-        sh = stdlog.StreamHandler()
-        sh.setLevel(stdlog.INFO)
-        sh.setFormatter(stdlog.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-        app.logger.addHandler(sh)
-        app.logger.error("Fallo configurando logging DB; usando StreamHandler. %s", e, exc_info=True)
+    
+    setup_logging(app)
+
  
     # Middleware: exigir login en rutas protegidas
     @app.before_request
