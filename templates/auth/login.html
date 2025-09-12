@@ -1,5 +1,6 @@
-{% extends "base.html" %}
-{% block content %}
+{% extends "base_login.html" %}
+{% set titulo = "Reservas 4.0 · Login" %}
+
 <section class="row justify-content-center">
   <div class="col-12 col-sm-10 col-md-7 col-lg-5">
     <div class="card card-glass shadow-xl border-0 overflow-hidden">
@@ -19,8 +20,7 @@
             <label for="username" class="form-label">Usuario</label>
             <div class="input-group input-group-lg">
               <span class="input-group-text"><i class="bi bi-person"></i></span>
-              <input id="username" name="username" class="form-control"
-                     placeholder="Tu usuario" required autofocus>
+              <input id="username" name="username" class="form-control" placeholder="Tu usuario" required autofocus>
               <div class="invalid-feedback">Introduce tu usuario.</div>
             </div>
           </div>
@@ -29,8 +29,7 @@
             <label for="password" class="form-label">Contraseña</label>
             <div class="input-group input-group-lg">
               <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
-              <input id="password" name="password" type="password" class="form-control"
-                     placeholder="••••••••" required>
+              <input id="password" name="password" type="password" class="form-control" placeholder="••••••••" required>
               <button class="btn btn-outline-secondary" type="button" id="btnTogglePwd" aria-label="Mostrar u ocultar contraseña">
                 <i class="bi bi-eye"></i>
               </button>
@@ -39,11 +38,7 @@
           </div>
 
           <div class="d-flex justify-content-between align-items-center mb-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="" id="remember" disabled>
-              <label class="form-check-label" for="remember">Recuérdame</label>
-            </div>
-            <!-- Enlace a recuperar cuando lo implementes -->
+            <span class="small text-secondary">Bienvenido</span>
             <a class="small link-secondary text-decoration-none" href="#" tabindex="-1">¿Olvidaste la contraseña?</a>
           </div>
 
@@ -56,30 +51,25 @@
       </div>
 
       <div class="card-footer bg-transparent border-0 px-5 pb-4">
-        <p class="mb-0 small text-secondary text-center">
-          © {{  (now().year if now else 2025)  }} Reservas 4.0 — Sesión cifrada
-        </p>
+        <p class="mb-0 small text-secondary text-center">© {{  (now().year if now else 2025)  }} Reservas 4.0</p>
       </div>
     </div>
   </div>
 </section>
 
 <script>
-  // Validación Bootstrap
-  (() => {
-    const form = document.querySelector('.needs-validation');
-    form.addEventListener('submit', e => {
-      if (!form.checkValidity()) { e.preventDefault(); e.stopPropagation(); }
-      form.classList.add('was-validated');
-    }, false);
-  })();
-  // Mostrar/Ocultar contraseña
-  document.getElementById('btnTogglePwd')?.addEventListener('click', () => {
-    const i = document.getElementById('password');
-    const btn = document.getElementById('btnTogglePwd').querySelector('i');
-    i.type = i.type === 'password' ? 'text' : 'password';
-    btn.classList.toggle('bi-eye');
-    btn.classList.toggle('bi-eye-slash');
-  });
+(() => {
+  const form = document.querySelector('.needs-validation');
+  form.addEventListener('submit', e => {
+    if (!form.checkValidity()) { e.preventDefault(); e.stopPropagation(); }
+    form.classList.add('was-validated');
+  }, false);
+})();
+document.getElementById('btnTogglePwd')?.addEventListener('click', () => {
+  const i = document.getElementById('password');
+  const btn = document.getElementById('btnTogglePwd').querySelector('i');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  btn.classList.toggle('bi-eye');
+  btn.classList.toggle('bi-eye-slash');
+});
 </script>
-{% endblock %}

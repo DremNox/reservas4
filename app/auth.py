@@ -28,7 +28,7 @@ def login_post():
     session["uname"] = row["Username"]
     session["role"] = row["Role"]
 
-    return redirect(url_for("ptp.ptp_get"))
+    return redirect(url_for("dash.estado"))
 
 @bp.get("/logout")
 def logout():

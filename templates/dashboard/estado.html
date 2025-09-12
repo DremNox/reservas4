@@ -2,10 +2,6 @@
 {% set titulo = "Estado histórico" %}
 {% set subtitulo = "Snapshots de Libre / Ocupado / Reservado" %}
 
-{% block header_actions %}
-  <a href="#" class="btn btn-outline-secondary btn-sm disabled"><i class="bi bi-arrow-clockwise me-1"></i>Actualizar</a>
-{% endblock %}
-
 {% block content %}
 <div class="row g-3">
   <div class="col-12 col-md-4">
@@ -14,7 +10,7 @@
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <div class="text-secondary small">Puntos vigilados</div>
-            <div class="display-6 fw-semibold">12</div>
+            <div class="display-6 fw-semibold">--</div>
           </div>
           <i class="bi bi-binoculars fs-3 text-secondary"></i>
         </div>
@@ -28,7 +24,7 @@
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <div class="text-secondary small">Disponibles</div>
-            <div class="display-6 fw-semibold">3</div>
+            <div class="display-6 fw-semibold">--</div>
           </div>
           <i class="bi bi-check2-circle fs-3 text-success"></i>
         </div>
@@ -42,7 +38,7 @@
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <div class="text-secondary small">Reservas hoy</div>
-            <div class="display-6 fw-semibold">5</div>
+            <div class="display-6 fw-semibold">--</div>
           </div>
           <i class="bi bi-calendar2-check fs-3 text-info"></i>
         </div>
@@ -56,9 +52,7 @@
   <div class="card-body">
     <h2 class="h6 mb-3">Actividad reciente</h2>
     <ul class="list-group list-group-flush list-activity">
-      <li class="list-group-item"><i class="bi bi-dot text-success"></i> VIMEL_06 · Toma A → <b>Libre</b> (09:42)</li>
-      <li class="list-group-item"><i class="bi bi-dot text-warning"></i> AVDA_LLEDO_02 · Toma B → <b>Reservado</b> (09:38)</li>
-      <li class="list-group-item"><i class="bi bi-dot text-danger"></i> CENTRO_03 · Toma A → <b>Ocupado</b> (09:35)</li>
+      <li class="list-group-item">Sin datos todavía.</li>
     </ul>
   </div>
 </div>

@@ -1,23 +1,48 @@
-{% extends "base.html" %}
+{% extends "dashboard/_layout.html" %}
+{% set titulo = "Cuenta PlaceToPlug" %}
+{% set subtitulo = "Credenciales y refresco de cookies" %}
+
 {% block content %}
-<h1>Cuenta PlaceToPlug</h1>
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card card-soft h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Guardar credenciales</h2>
+        <form method="post" action="{{ url_for('ptp.ptp_save') }}" class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Email PTP</label>
+            <input name="email" type="email" required class="form-control"
+                   value="{{ account.EmailPTP if account else '' }}"/>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Contraseña PTP</label>
+            <input name="password" type="password" required class="form-control"/>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit">
+              <i class="bi bi-save2 me-1"></i>Guardar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
-{% if session.get('uname') %}
-<p>Conectado como <strong>{{ session['uname'] }}</strong> — <a href="{{ url_for('auth.logout') }}">Salir</a></p>
-{% endif %}
-
-<form method="post" action="{{ url_for('ptp.ptp_save') }}">
-  <label>Email PTP</label>
-  <input name="email" type="email" required value="{{ account.EmailPTP if account else '' }}"/>
-  <label>Contraseña PTP</label>
-  <input name="password" type="password" required />
-  <button type="submit">Guardar</button>
-</form>
-
-{% if account %}
-  <p>Credenciales guardadas: {{ 'Sí' if account.Algorithm else 'No' }} {% if account.UpdatedAt %} (actualizado {{ account.UpdatedAt }}){% endif %}</p>
-  <form method="post" action="{{ url_for('ptp.ptp_refresh_now') }}">
-    <button type="submit">Refrescar cookies ahora</button>
-  </form>
-{% endif %}
+  <div class="col-12 col-lg-6">
+    <div class="card card-soft h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Estado</h2>
+        {% if account %}
+          <p class="mb-1">Credenciales guardadas: <b>{{ 'Sí' if account.Algorithm else 'No' }}</b></p>
+          {% if account.UpdatedAt %}<p class="text-secondary small">Actualizado {{ account.UpdatedAt }}</p>{% endif %}
+          <form method="post" action="{{ url_for('ptp.ptp_refresh_now') }}">
+            <button class="btn btn-outline-light" type="submit"><i class="bi bi-arrow-repeat me-1"></i>Refrescar cookies ahora</button>
+          </form>
+        {% else %}
+          <p class="text-secondary">Aún no hay credenciales guardadas.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -1,35 +1,65 @@
-{% extends "base.html" %}
+{% extends "dashboard/_layout.html" %}
+{% set titulo = "Reservar / Vigilar" %}
+{% set subtitulo = "Conjuntos de puntos y lógica de auto-reserva" %}
+
 {% block content %}
-<h1>Reservar / Vigilar</h1>
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card card-soft h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Nuevo conjunto</h2>
+        <form method="post" action="{{ url_for('resv.reservar_set_create') }}" class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Nombre</label>
+            <input name="nombre" class="form-control" required />
+          </div>
+          <div class="col-4">
+            <label class="form-label">Toma</label>
+            <select name="toma" class="form-select">
+              <option value="A">A</option><option value="B">B</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label">Ventana (min)</label>
+            <input name="ventana" type="number" min="1" max="60" value="5" class="form-control"/>
+          </div>
+          <div class="col-4">
+            <label class="form-label">Activo</label>
+            <select name="activo" class="form-select">
+              <option value="1">Sí</option><option value="0">No</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-plus-circle me-1"></i>Crear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
-<h3>Nuevo conjunto</h3>
-<form method="post" action="{{ url_for('resv.reservar_set_create') }}">
-  <label>Nombre del conjunto</label>
-  <input name="nombre" required />
-  <label>Toma preferida</label>
-  <select name="toma">
-    <option value="A">A</option>
-    <option value="B">B</option>
-  </select>
-  <label>Ventana de cambio (min)</label>
-  <input name="ventana" type="number" min="1" max="60" value="5"/>
-  <label>Activo</label>
-  <select name="activo">
-    <option value="1">Sí</option>
-    <option value="0">No</option>
-  </select>
-  <button type="submit">Crear</button>
-</form>
-
-<h3>Mis conjuntos</h3>
-<ul>
-  {% for s in sets %}
-    <li>
-      <a href="{{ url_for('resv.reservar_set_detail', setid=s.SetId) }}">{{ s.Nombre }}</a>
-      — items: {{ s.NumItems }} — toma {{ s.TomaPreferida }} — ventana {{ s.VentanaCambioMin }} min — {{ 'Activo' if s.Activo else 'Inactivo' }}
-    </li>
-  {% else %}
-    <li>No hay conjuntos aún.</li>
-  {% endfor %}
-</ul>
+  <div class="col-12 col-lg-7">
+    <div class="card card-soft h-100">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Mis conjuntos</h2>
+        <ul class="list-group list-group-flush">
+          {% for s in sets %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <a class="text-white text-decoration-none" href="{{ url_for('resv.reservar_set_detail', setid=s.SetId) }}">
+                  {{ s.Nombre }}
+                </a>
+                <div class="small text-secondary">
+                  items: {{ s.NumItems }} · toma {{ s.TomaPreferida }} · ventana {{ s.VentanaCambioMin }} min
+                </div>
+              </div>
+              <span class="badge {{ 'bg-success' if s.Activo else 'bg-secondary' }}">{{ 'Activo' if s.Activo else 'Inactivo' }}</span>
+            </li>
+          {% else %}
+            <li class="list-group-item text-secondary">No hay conjuntos aún.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -1,41 +1,76 @@
-{% extends "base.html" %}
+{% extends "dashboard/_layout.html" %}
+{% set titulo = "Detalle del conjunto" %}
+{% set subtitulo = s.Nombre %}
+
 {% block content %}
-<h1>Conjunto: {{ s.Nombre }}</h1>
-<p>Toma preferida: <b>{{ s.TomaPreferida }}</b> — Ventana cambio: <b>{{ s.VentanaCambioMin }} min</b> — Estado: <b>{{ 'Activo' if s.Activo else 'Inactivo' }}</b></p>
+<div class="card card-soft mb-3">
+  <div class="card-body d-flex justify-content-between align-items-center">
+    <div>
+      <div class="small text-secondary">Toma preferida · Ventana</div>
+      <div><b>{{ s.TomaPreferida }}</b> · <b>{{ s.VentanaCambioMin }} min</b></div>
+    </div>
+    <form method="post" action="{{ url_for('resv.reservar_set_toggle', setid=s.SetId) }}" class="mb-0">
+      <button class="btn {{ 'btn-outline-danger' if s.Activo else 'btn-outline-success' }}" type="submit">
+        <i class="bi {{ 'bi-pause-circle' if s.Activo else 'bi-play-circle' }} me-1"></i>
+        {{ 'Desactivar' if s.Activo else 'Activar' }}
+      </button>
+    </form>
+  </div>
+</div>
 
-<form method="post" action="{{ url_for('resv.reservar_set_toggle', setid=s.SetId) }}">
-  <button type="submit">{{ 'Desactivar' if s.Activo else 'Activar' }}</button>
-</form>
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card card-soft">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Items</h2>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr><th>Prioridad</th><th>Slug/ExternalIdPTP</th><th>Socket pref.</th><th>Notas</th></tr>
+            </thead>
+            <tbody>
+              {% for it in items %}
+              <tr>
+                <td>{{ it.Prioridad }}</td>
+                <td>{{ it.ExternalIdPTP }}</td>
+                <td>{{ it.PreferredSocket or '-' }}</td>
+                <td>{{ it.Notas or '' }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-secondary">Sin items aún.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
 
-<h3>Items</h3>
-<table border="1" cellpadding="6">
-  <tr><th>Prioridad</th><th>Slug/ExternalIdPTP</th><th>Socket pref.</th><th>Notas</th></tr>
-  {% for it in items %}
-  <tr>
-    <td>{{ it.Prioridad }}</td>
-    <td>{{ it.ExternalIdPTP }}</td>
-    <td>{{ it.PreferredSocket or '-' }}</td>
-    <td>{{ it.Notas or '' }}</td>
-  </tr>
-  {% else %}
-  <tr><td colspan="4">Sin items aún.</td></tr>
-  {% endfor %}
-</table>
-
-<h3>Añadir item</h3>
-<form method="post" action="{{ url_for('resv.reservar_set_item_add', setid=s.SetId) }}">
-  <label>URL o slug del punto PTP</label>
-  <input name="slug" placeholder="https://placetoplug.com/es/.../VIMEL_-_CASTELLON_06 o 'VIMEL_-_CASTELLON_06'" required />
-  <label>Prioridad (1=primero)</label>
-  <input name="prioridad" type="number" min="1" value="1" />
-  <label>Socket preferido para este punto (opcional)</label>
-  <select name="socket">
-    <option value="">(sin preferencia)</option>
-    <option value="A">A</option>
-    <option value="B">B</option>
-  </select>
-  <label>Notas</label>
-  <input name="notas" />
-  <button type="submit">Añadir</button>
-</form>
+        <hr>
+        <h2 class="h6 mb-2">Añadir item</h2>
+        <form method="post" action="{{ url_for('resv.reservar_set_item_add', setid=s.SetId) }}" class="row g-2">
+          <div class="col-12 col-lg-5">
+            <label class="form-label">URL o slug del punto PTP</label>
+            <input name="slug" class="form-control" placeholder=".../VIMEL_-_CASTELLON_06 o VIMEL_-_CASTELLON_06" required />
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label">Prioridad</label>
+            <input name="prioridad" type="number" min="1" value="1" class="form-control" />
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label">Socket pref.</label>
+            <select name="socket" class="form-select">
+              <option value="">(sin preferencia)</option>
+              <option value="A">A</option><option value="B">B</option>
+            </select>
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label">Notas</label>
+            <input name="notas" class="form-control" />
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-plus-circle me-1"></i>Añadir</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
