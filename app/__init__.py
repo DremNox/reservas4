@@ -40,7 +40,7 @@ def create_app():
     def index():
         if session.get("uid"):
             return redirect(url_for("dash.estado"))
-        return redirect(url_for("auth.login_get"))
+        return redirect(url_for("auth.login"))
 
     # Alias corto /dashboard -> /dashboard/estado
     @app.get("/dashboard")
