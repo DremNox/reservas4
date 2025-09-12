@@ -7,6 +7,8 @@ from .dashboard import bp as dash_bp
 from .reservar import bp as resv_bp
 from .admin import bp as admin_bp
 from .logging  import setup_logging
+from .puntos import bp as puntos_bp   # 🔹 IMPORTAR el nuevo blueprint
+
 
 LOGIN_REQUIRED_PREFIXES = ("/dashboard", "/account", "/admin")
 
