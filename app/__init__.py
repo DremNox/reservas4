@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, redirect, url_for, session  # <-- imports
+from flask import Flask, render_template, redirect, url_for, session, request
 from dotenv import load_dotenv
 from .auth import bp as auth_bp
 from .ptp import bp as ptp_bp
@@ -7,20 +7,8 @@ from .dashboard import bp as dash_bp
 from .reservar import bp as resv_bp
 from .admin import bp as admin_bp
 
-from flask import request
-
 LOGIN_REQUIRED_PREFIXES = ("/dashboard", "/account", "/admin")
 
-@app.before_request
-def _force_login_on_protected_routes():
-    path = request.path or "/"
-    # Permitir estáticos y login/logout
-    if path.startswith("/static") or path.startswith("/healthz") or path.startswith("/auth"):
-        return
-    # Proteger prefijos
-    if path.startswith(LOGIN_REQUIRED_PREFIXES) and not session.get("uid"):
-        # redirige a login con next=...
-        return redirect(url_for("auth.login_get", next=path))
 def create_app():
     load_dotenv()
 
@@ -35,14 +23,24 @@ def create_app():
     app.register_blueprint(resv_bp)
     app.register_blueprint(admin_bp)
 
-    # Home -> redirección inteligente
+    # Middleware: exigir login en rutas protegidas
+    @app.before_request
+    def _force_login_on_protected_routes():
+        path = request.path or "/"
+        if path.startswith("/static") or path.startswith("/healthz") or path.startswith("/auth"):
+            return
+        if path.startswith(LOGIN_REQUIRED_PREFIXES) and not session.get("uid"):
+            # respeta ?next=
+            return redirect(url_for("auth.login_get", next=path))
+
+    # Home -> redirección por sesión
     @app.get("/")
     def index():
         if session.get("uid"):
             return redirect(url_for("dash.estado"))
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.login_get"))
 
-    # Alias corto /dashboard -> /dashboard/estado
+    # Alias /dashboard
     @app.get("/dashboard")
     def dashboard_home():
         return redirect(url_for("dash.estado"))
@@ -52,7 +50,7 @@ def create_app():
     def health():
         return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
-    # Errores modernos
+    # Errores
     @app.errorhandler(404)
     def not_found(e):
         return render_template("errors/404.html", titulo="Página no encontrada"), 404

@@ -23,12 +23,15 @@ def login_post():
         flash("Usuario o contraseña no válidos", "error")
         return redirect(url_for("auth.login_get"))
 
-    # Sesión muy simple (sin Flask-Login para mantenerlo mínimo)
+    # Sesión muy simple
     session["uid"] = int(row["UserId"])
     session["uname"] = row["Username"]
     session["role"] = row["Role"]
 
-    return redirect(url_for("dash.estado"))
+    # 👇 Aquí añadimos soporte para ?next= o hidden input
+    next_url = request.args.get("next") or request.form.get("next") or url_for("dash.estado")
+    return redirect(next_url)
+
 
 @bp.get("/logout")
 def logout():

@@ -48,6 +48,8 @@
               <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
             </button>
           </div>
+          <input type="hidden" name="next" value="{{ request.args.get('next','') }}">
+
         </form>
       </div>
 
