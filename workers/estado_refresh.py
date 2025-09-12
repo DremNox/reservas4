@@ -3,7 +3,9 @@ from app.db import fetch_all
 from app.estado import scrape_conector_estado
 import logging
 from app.logging import DBHandler, RequestContextFilter
+from dotenv import load_dotenv
 
+load_dotenv("/opt/reservas4/repo/.env")
 logger = logging.getLogger("estado_refresh")
 h = DBHandler(); h.addFilter(RequestContextFilter()); h.setLevel(logging.INFO)
 logger.addHandler(h); logger.setLevel(logging.INFO)
