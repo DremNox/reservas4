@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template  # <-- añadido
+from flask import Flask, render_template, redirect, url_for, session  # <-- imports
 from dotenv import load_dotenv
 from .auth import bp as auth_bp
 from .ptp import bp as ptp_bp
@@ -21,30 +21,30 @@ def create_app():
     app.register_blueprint(resv_bp)
     app.register_blueprint(admin_bp)
 
+    # Home -> redirección inteligente
     @app.get("/")
     def index():
-        # Evita 500 si no tienes index.html todavía
-        try:
-            return render_template("base_login.html", titulo="Inicio")
-        except Exception:
-            return "Reservas 4.0 – Home (pendiente index.html)", 200
+        if session.get("uid"):
+            return redirect(url_for("dash.estado"))
+        return redirect(url_for("auth.login_get"))
 
+    # Alias corto /dashboard -> /dashboard/estado
+    @app.get("/dashboard")
+    def dashboard_home():
+        return redirect(url_for("dash.estado"))
+
+    # Healthcheck
     @app.get("/healthz")
     def health():
         return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
+    # Errores modernos
     @app.errorhandler(404)
     def not_found(e):
-        try:
-            return render_template("errors/404.html"), 404
-        except Exception:
-            return "404 Not Found", 404
+        return render_template("errors/404.html", titulo="Página no encontrada"), 404
 
     @app.errorhandler(500)
     def internal_error(e):
-        try:
-            return render_template("errors/500.html"), 500
-        except Exception:
-            return "500 Internal Server Error", 500
+        return render_template("errors/500.html", titulo="Error del servidor"), 500
 
     return app

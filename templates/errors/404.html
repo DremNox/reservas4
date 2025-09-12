@@ -1,5 +1,18 @@
 {% extends "base.html" %}
-{% block title %}404 · Reservas 4.0{% endblock %}
+{% set titulo = titulo or "404" %}
 {% block content %}
-<h1>404</h1><p>Página no encontrada.</p>
+<div class="text-center py-5">
+  <div class="mb-3">
+    <span class="brand-icon small me-2"><i class="bi bi-lightning-charge-fill"></i></span>
+    <span class="fw-semibold">Reservas 4.0</span>
+  </div>
+  <h1 class="display-5 fw-bold">404</h1>
+  <p class="lead text-secondary">La página que buscas no existe o fue movida.</p>
+  <div class="d-flex justify-content-center gap-2 mt-3">
+    <a class="btn btn-primary" href="{{ url_for('dash.estado') }}"><i class="bi bi-speedometer2 me-1"></i> Ir al dashboard</a>
+    {% if not session.get('uid') %}
+      <a class="btn btn-outline-light" href="{{ url_for('auth.login_get') }}"><i class="bi bi-box-arrow-in-right me-1"></i> Entrar</a>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

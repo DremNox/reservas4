@@ -1,5 +1,16 @@
 {% extends "base.html" %}
-{% block title %}500 · Reservas 4.0{% endblock %}
+{% set titulo = titulo or "500" %}
 {% block content %}
-<h1>500</h1><p>Ha ocurrido un error interno.</p>
+<div class="text-center py-5">
+  <div class="mb-3">
+    <span class="brand-icon small me-2"><i class="bi bi-lightning-charge-fill"></i></span>
+    <span class="fw-semibold">Reservas 4.0</span>
+  </div>
+  <h1 class="display-5 fw-bold">Algo ha fallado</h1>
+  <p class="lead text-secondary">Se produjo un error interno. Hemos registrado el incidente.</p>
+  <div class="d-flex justify-content-center gap-2 mt-3">
+    <a class="btn btn-primary" href="{{ url_for('dash.estado') }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Reintentar</a>
+    <a class="btn btn-outline-light" href="{{ url_for('auth.login_get') }}"><i class="bi bi-box-arrow-in-right me-1"></i> Volver al acceso</a>
+  </div>
+</div>
 {% endblock %}
