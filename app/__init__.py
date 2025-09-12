@@ -7,6 +7,20 @@ from .dashboard import bp as dash_bp
 from .reservar import bp as resv_bp
 from .admin import bp as admin_bp
 
+from flask import request
+
+LOGIN_REQUIRED_PREFIXES = ("/dashboard", "/account", "/admin")
+
+@app.before_request
+def _force_login_on_protected_routes():
+    path = request.path or "/"
+    # Permitir estáticos y login/logout
+    if path.startswith("/static") or path.startswith("/healthz") or path.startswith("/auth"):
+        return
+    # Proteger prefijos
+    if path.startswith(LOGIN_REQUIRED_PREFIXES) and not session.get("uid"):
+        # redirige a login con next=...
+        return redirect(url_for("auth.login_get", next=path))
 def create_app():
     load_dotenv()
 

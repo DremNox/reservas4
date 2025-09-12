@@ -1,6 +1,7 @@
 {% extends "base_login.html" %}
 {% set titulo = "Reservas 4.0 · Login" %}
 
+{% block content %}
 <section class="row justify-content-center">
   <div class="col-12 col-sm-10 col-md-7 col-lg-5">
     <div class="card card-glass shadow-xl border-0 overflow-hidden">
@@ -73,3 +74,4 @@ document.getElementById('btnTogglePwd')?.addEventListener('click', () => {
   btn.classList.toggle('bi-eye-slash');
 });
 </script>
+{% endblock %}
