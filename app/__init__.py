@@ -6,7 +6,7 @@ from .ptp import bp as ptp_bp
 from .dashboard import bp as dash_bp
 from .reservar import bp as resv_bp
 from .admin import bp as admin_bp
-from .logging_setup  import setup_logging
+from .logging  import setup_logging
 
 LOGIN_REQUIRED_PREFIXES = ("/dashboard", "/account", "/admin")
 

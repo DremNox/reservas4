@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
 from flask import abort
-
+import logging
 from .db import fetch_one, fetch_all, execute
 from .utils.crypto import encrypt_str, decrypt_str
 
@@ -46,6 +46,7 @@ X_BTN_SIGUIENTE_PASS = "//body//app-root//div[2]//div[2]//button[1]"
 LOGS_DIR = Path("/opt/reservas4/logs")
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 COOKIES_JSON_PATH = LOGS_DIR / "ptp_cookies_dump.json"
+logger = logging.getLogger("ptp")  # logger de módulo, usable fuera/ dentro de Flask
 
 
 # ------------------- HELPERS WEB -------------------
@@ -57,6 +58,7 @@ def _require_login():
 # ------------------- UTILIDADES SELENIUM -------------------
 def create_driver(headless: bool = HEADLESS) -> webdriver.Chrome:
     """Crea un driver de Chrome con/ sin interfaz usando selenium-manager."""
+    logger.info("selenium.init headless=%s", headless)
     chrome_options = ChromeOptions()
     if headless:
         chrome_options.add_argument("--headless=new")  # headless moderno
@@ -70,6 +72,7 @@ def create_driver(headless: bool = HEADLESS) -> webdriver.Chrome:
     driver = webdriver.Chrome(service=ChromeService(), options=chrome_options)
     driver.set_page_load_timeout(PAGELOAD_TIMEOUT)
     driver.implicitly_wait(IMPLICIT_WAIT)
+    logger.info("selenium.ready pageload_timeout=%s implicit_wait=%s", PAGELOAD_TIMEOUT, IMPLICIT_WAIT)
     return driver
 
 
@@ -104,6 +107,7 @@ def save_json(cookies: List[Dict[str, Any]], path: Path) -> None:
 
 
 def maybe_accept_cookies_banner(driver):
+    logger.info("cookies.banner.try")
     """Intenta aceptar banners de cookies comunes; ignora si no hay."""
     candidates = [
         "//button[contains(., 'Aceptar')]",
@@ -119,19 +123,33 @@ def maybe_accept_cookies_banner(driver):
                 try:
                     btns[0].click()
                     time.sleep(0.5)
+                    logger.info("cookies.banner.accepted selector=%s", xp)
                     break
                 except Exception:
-                    pass
+                    logger.warning("cookies.banner.click.fail selector=%s err=%s", xp, e)                    
         except Exception:
             pass
 
 
 # ------------------- FLUJO DE LOGIN PTP -------------------
+def _mask_email(e: str) -> str:
+    try:
+        user, dom = e.split("@", 1)
+        if len(user) <= 2:
+            return "***@" + dom
+        return user[0] + "***" + user[-1] + "@" + dom
+    except Exception:
+        return "***"
 def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]:
+    t0 = time.time()
+    #logger.info("ptp.login.start url=%s email=%s", PTP_LOGIN_URL, _mask_email(email))
+    logger.info("ptp.login.start url=%s email=%s", PTP_LOGIN_URL, email)
+
     driver = create_driver(HEADLESS)
     try:
         # 1) Cargar página de login
         driver.get(PTP_LOGIN_URL)
+        logger.info("ptp.login.page.loaded url_now=%s", driver.current_url)
         maybe_accept_cookies_banner(driver)
 
         # 2) Email
@@ -142,21 +160,27 @@ def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]
             email_box.send_keys(Keys.CONTROL, "a")
             email_box.send_keys(Keys.DELETE)
         email_box.send_keys(email)
+        logger.info("ptp.login.email.typed")
 
         btn_siguiente_email = wait_clickable(driver, X_BTN_SIGUIENTE_EMAIL)
         btn_siguiente_email.click()
+        logger.info("ptp.login.email.next.clicked")
 
         # 3) Password (tras “siguiente” del email)
         password_box = wait_visible(driver, X_PASSWORD)
+        logger.info("ptp.login.pass.input.visible")
         try:
             password_box.clear()
         except Exception:
             password_box.send_keys(Keys.CONTROL, "a")
             password_box.send_keys(Keys.DELETE)
+
+        logger.info("ptp.login.pass.typed")
         password_box.send_keys(password)
 
         btn_siguiente_pass = wait_clickable(driver, X_BTN_SIGUIENTE_PASS)
         btn_siguiente_pass.click()
+        logger.info("ptp.login.pass.next.clicked")
 
         # 4) Esperar a “login hecho”: cookies de sesión o cambio de URL
         WebDriverWait(driver, EXPLICIT_WAIT).until(
@@ -169,23 +193,30 @@ def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]
         cookies = dump_cookies(driver)
         # Debug opcional
         # save_json(cookies, COOKIES_JSON_PATH)
+        logger.info(
+            "ptp.login.success cookies=%s auth_token=%s duration_ms=%s url_final=%s",
+            len(cookies), has_auth, int((time.time()-t0)*1000), driver.current_url
+        )
         return cookies
 
     except (TimeoutException, NoSuchElementException, ElementNotInteractableException) as e:
         ts = int(time.time())
         try:
             driver.save_screenshot(str(LOGS_DIR / f"login_error_{ts}.png"))
+            logger.error("ptp.login.fail screenshot=%s err=%s", shot, e, exc_info=True)
         except Exception:
             pass
         raise RuntimeError(f"Error durante login PTP: {e}") from e
     finally:
         driver.quit()
+        logger.info("ptp.login.driver.quit duration_ms=%s", int((time.time()-t0)*1000))
 
 
 # ------------------- VISTAS -------------------
 @bp.get("/ptp")
 def ptp_get():
     _require_login()
+    current_app.logger.info("Vista PTP abierta")
     account = fetch_one("""
         SELECT a.AccountId, a.EmailPTP, c.Algorithm, c.UpdatedAt
         FROM dbo.CuentasPTP a
@@ -201,6 +232,7 @@ def ptp_save():
     email = (request.form.get("email") or "").strip()
     password = request.form.get("password") or ""
     if not email or not password:
+        current_app.logger.warning("PTP save sin email o password")
         flash("Email y contraseña PTP son obligatorios", "error")
         return redirect(url_for("ptp.ptp_get"))
 
@@ -232,6 +264,7 @@ def ptp_save():
              VALUES (s.AccountId, :p, N'fernet-v1');
     """, acc=acc["AccountId"], p=enc)
 
+    current_app.logger.info("PTP credenciales guardadas para '%s'", email)
     flash("Cuenta PTP guardada en BD (password cifrada).", "success")
     return redirect(url_for("ptp.ptp_get"))
 
@@ -242,11 +275,12 @@ def ptp_refresh_now():
     account = fetch_one("""
         SELECT a.AccountId, a.EmailPTP, c.PasswordEnc
         FROM dbo.CuentasPTP a
-        JOIN dbo.CredencialesPTP c ON c.AccountId = a.AccountId
+        JOIN dbo.CredencialesPTP c ON c.AccountId = a.AccountIds
         WHERE a.UserId=:uid
     """, uid=session["uid"])
 
     if not account:
+        current_app.logger.warning("refresh-now sin cuenta PTP configurada")
         flash("Primero guarda tu cuenta PTP (email + password).", "error")
         return redirect(url_for("ptp.ptp_get"))
 
@@ -255,6 +289,7 @@ def ptp_refresh_now():
 
     try:
         total_saved, has_auth = selenium_login_and_store_cookies(account["AccountId"], email, password)
+        current_app.logger.info("PTP refresh cookies: guardadas=%s, auth_token=%s", total_saved, has_auth)
     except Exception as e:
         current_app.logger.error("Selenium login error: %s", e)
         flash("Fallo al iniciar sesión en PlaceToPlug (ver logs).", "error")
@@ -303,6 +338,8 @@ def store_cookies_in_db(account_id: int, cookies: List[Dict[str, Any]]) -> tuple
         total_saved += 1
         if name and name.lower() == "auth_token" and value:
             has_auth = True
+        logger.info("ptp.cookies.store account_id=%s total=%s names=%s auth_token=%s",
+            account_id, total_saved, by_name, has_auth)
 
     return total_saved, has_auth
 
