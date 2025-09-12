@@ -254,15 +254,23 @@ def ptp_refresh_now():
     password = decrypt_str(account["PasswordEnc"])
 
     try:
-        cookies = login_and_collect_cookies(email, password)
+        total_saved, has_auth = selenium_login_and_store_cookies(account["AccountId"], email, password)
     except Exception as e:
         current_app.logger.error("Selenium login error: %s", e)
         flash("Fallo al iniciar sesión en PlaceToPlug (ver logs).", "error")
         return redirect(url_for("ptp.ptp_get"))
 
-    # Guardar cookies en BD: invalidar vigentes por (AccountId, Name, Domain, Path) y crear nuevas
+    flash(f"Cookies guardadas: {total_saved}. auth_token={'OK' if has_auth else 'NO'}", "success")
+    return redirect(url_for("ptp.ptp_get"))
+# ... (todo lo anterior igual)
+
+# ------------------- GUARDAR COOKIES EN BD (reutilizable) -------------------
+def store_cookies_in_db(account_id: int, cookies: List[Dict[str, Any]]) -> tuple[int, bool]:
+    """Guarda cookies en dbo.CookiesPTP con invalidación de la vigente por (Name,Domain,Path).
+    Devuelve (total_guardadas, hay_auth_token)."""
     total_saved = 0
     has_auth = False
+
     for c in cookies:
         name = c.get("name")
         value = c.get("value")
@@ -273,35 +281,33 @@ def ptp_refresh_now():
         secure = 1 if c.get("secure") else 0
         sameSite = c.get("sameSite")
 
-        # Convertir expiry (epoch) -> datetime
         exp_dt = None
         if isinstance(expiry, (int, float)):
             exp_dt = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
 
-        # invalidar anteriores "vigentes"
         execute("""
             UPDATE dbo.CookiesPTP
             SET IsCurrent = 0, IsValid = 0
             WHERE AccountId=:aid AND Name=:n AND Domain=:d AND Path=:p AND IsCurrent=1
-        """, aid=account["AccountId"], n=name, d=domain, p=path)
+        """, aid=account_id, n=name, d=domain, p=path)
 
-        # insertar nueva vigente
         execute("""
             INSERT INTO dbo.CookiesPTP
             (AccountId, Name, Value, Domain, Path, ExpiryUtc, Secure, HttpOnly, SameSite,
              LastLoginUtc, LastRefreshUtc, IsValid, IsCurrent)
             VALUES
             (:aid, :n, :v, :d, :p, :exp, :sec, :httponly, :ss, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, 1)
-        """, aid=account["AccountId"], n=name, v=value, d=domain, p=path, exp=exp_dt,
+        """, aid=account_id, n=name, v=value, d=domain, p=path, exp=exp_dt,
              sec=secure, httponly=httpOnly, ss=sameSite)
 
         total_saved += 1
         if name and name.lower() == "auth_token" and value:
             has_auth = True
 
-    flash(f"Cookies guardadas: {total_saved}. auth_token={'OK' if has_auth else 'NO'}", "success")
-    return redirect(url_for("ptp.ptp_get"))
+    return total_saved, has_auth
 
-# Alias estable para workers (evita ImportError por nombres privados)
-def selenium_login_and_store_cookies(*args, **kwargs):
-    return _selenium_login_and_store_cookies(*args, **kwargs)
+
+def selenium_login_and_store_cookies(account_id: int, email: str, password: str) -> tuple[int, bool]:
+    """Login con Selenium y persistencia en BD para uso por workers y vistas."""
+    cookies = login_and_collect_cookies(email, password)
+    return store_cookies_in_db(account_id, cookies)
