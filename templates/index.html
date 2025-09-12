@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Inicio · Reservas 4.0{% endblock %}
+{% block content %}
+  <h1>Inicio</h1>
+  {% if session.get('uid') %}
+    <p>Hola, <strong>{{ session['uname'] }}</strong>.</p>
+    <ul>
+      <li><a href="{{ url_for('ptp.ptp_get') }}">Configurar cuenta PlaceToPlug</a></li>
+      <li><a href="{{ url_for('resv.reservar_get') }}">Reservar / Vigilar puntos</a></li>
+      <li><a href="{{ url_for('dash.estado') }}">Ver estado histórico</a></li>
+      <li><a href="{{ url_for('dash.precios_cs') }}">Precios Castellón</a></li>
+      <li><a href="{{ url_for('dash.precios_ciudad') }}">Precios por ciudad</a></li>
+    </ul>
+  {% else %}
+    <p>Para continuar, inicia sesión.</p>
+    <p><a href="{{ url_for('auth.login_get') }}">Ir al login</a></p>
+  {% endif %}
+{% endblock %}
