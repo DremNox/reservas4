@@ -15,7 +15,7 @@ def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["TZ"] = os.getenv("TZ", "Europe/Madrid")
-
+    setup_logging(app)
     # Blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
