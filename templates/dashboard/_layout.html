@@ -28,6 +28,12 @@
         </a>
       </li>
       <li class="nav-item">
+        <a class="nav-link {% if request.path.startswith('/dashboard/puntos') %}active{% endif %}" 
+            href="{{ url_for('puntos.puntos_list') }}">
+          <i class="bi bi-geo-alt"></i> Puntos de carga
+        </a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link d-flex align-items-center {% if request.path.startswith('/dashboard/reservar') %}active{% endif %}" href="{{ url_for('resv.reservar_get') }}">
           <i class="bi bi-lightning me-2"></i> Reservar / Vigilar
         </a>
