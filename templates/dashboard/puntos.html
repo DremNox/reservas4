@@ -25,55 +25,60 @@
     <h5 class="mb-3">Mis puntos</h5>
 
     <div class="table-responsive">
-  <table class="table align-middle">
-    <thead>
-      <tr>
-        <th style="width: 42%">Nombre</th>
-        <th class="text-center" style="width: 10%">Conectores</th>
-        <th class="text-center" style="width: 18%">Estado</th>
-        <th class="text-center" style="width: 20%">Última lectura</th>
-        <th class="text-end" style="width: 10%">Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in puntos %}
-      <tr>
-        <td>
-          <div class="fw-semibold">{{ p.Nombre }}</div>
-          {% if p.Notas %}<div class="text-secondary small">{{ p.Notas }}</div>{% endif %}
-        </td>
-        <td class="text-center">{{ p.NumConectores }}</td>
-        <td class="text-center">
-          {% set st = p.EstadoPunto or 'Sin datos' %}
-          <span class="badge
-            {% if st=='Disponible' %} bg-success
-            {% elif st=='Ocupado' %} bg-danger
-            {% elif st=='Reservado' %} bg-warning text-dark
-            {% elif st=='Fuera de servicio' %} bg-secondary
-            {% elif st=='Sin datos' %} bg-dark
-            {% else %} bg-info
-            {% endif %}">
-            {{ st }}
-          </span>
-        </td>
-        <td class="text-center">{{ p.UltimaLecturaUtc or '-' }}</td>
-        <td class="text-end">
-          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('puntos.punto_detail', punto_id=p.PuntoId) }}">
-            Abrir
-          </a>
-          <form method="post" action="{{ url_for('puntos.punto_delete', punto_id=p.PuntoId) }}" class="d-inline"
-                onsubmit="return confirm('¿Eliminar el punto y sus conectores/estados? Esta acción no se puede deshacer.');">
-            <button class="btn btn-outline-danger btn-sm">Eliminar</button>
-          </form>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5" class="text-secondary">Aún no tienes puntos. Crea el primero arriba.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width: 42%">Nombre</th>
+            <th class="text-center" style="width: 10%">Conectores</th>
+            <th class="text-center" style="width: 18%">Estado</th>
+            <th class="text-center" style="width: 20%">Última lectura</th>
+            <th class="text-end" style="width: 10%">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in puntos %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ p.Nombre }}</div>
+              {% if p.Notas %}
+              <div class="text-secondary small">{{ p.Notas }}</div>
+              {% endif %}
+            </td>
+            <td class="text-center">{{ p.NumConectores }}</td>
+            <td class="text-center">
+              {% set st = p.EstadoPunto or 'Sin datos' %}
+              <span class="badge
+                {% if st=='Disponible' %} bg-success
+                {% elif st=='Ocupado' %} bg-danger
+                {% elif st=='Reservado' %} bg-warning text-dark
+                {% elif st=='Fuera de servicio' %} bg-secondary
+                {% elif st=='Sin datos' %} bg-dark
+                {% else %} bg-info
+                {% endif %}">
+                {{ st }}
+              </span>
+            </td>
+            <td class="text-center">{{ p.UltimaLecturaUtc or '-' }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('puntos.punto_detail', punto_id=p.PuntoId) }}">
+                Abrir
+              </a>
+              <form method="post"
+                    action="{{ url_for('puntos.punto_delete', punto_id=p.PuntoId) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('¿Eliminar el punto y sus conectores/estados? Esta acción no se puede deshacer.');">
+                <button class="btn btn-outline-danger btn-sm">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-secondary">Aún no tienes puntos. Crea el primero arriba.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}
