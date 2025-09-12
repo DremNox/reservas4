@@ -6,7 +6,7 @@ from .ptp import bp as ptp_bp
 from .dashboard import bp as dash_bp
 from .reservar import bp as resv_bp
 from .admin import bp as admin_bp
-from .logging import setup_logging
+from .logging_setup  import setup_logging
 
 LOGIN_REQUIRED_PREFIXES = ("/dashboard", "/account", "/admin")
 
@@ -16,14 +16,22 @@ def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["TZ"] = os.getenv("TZ", "Europe/Madrid")
-    setup_logging(app)
     # Blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(ptp_bp,  url_prefix="/account")
     app.register_blueprint(dash_bp)
     app.register_blueprint(resv_bp)
     app.register_blueprint(admin_bp)
-
+    try:
+        setup_logging(app)
+    except Exception as e:
+        import logging as stdlog
+        sh = stdlog.StreamHandler()
+        sh.setLevel(stdlog.INFO)
+        sh.setFormatter(stdlog.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        app.logger.addHandler(sh)
+        app.logger.error("Fallo configurando logging DB; usando StreamHandler. %s", e, exc_info=True)
+ 
     # Middleware: exigir login en rutas protegidas
     @app.before_request
     def _force_login_on_protected_routes():

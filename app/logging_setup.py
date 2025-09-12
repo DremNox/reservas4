@@ -1,6 +1,8 @@
 import logging, json, os
 from datetime import datetime, timezone
 from .db import execute
+import logging as stdlog
+
 
 class DBHandler(logging.Handler):
     def emit(self, record):
@@ -33,8 +35,8 @@ class DBHandler(logging.Handler):
 
 def setup_logging(app):
     handler = DBHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    handler.setLevel(stdlog.INFO)
+    formatter = stdlog.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
-    app.logger.setLevel(logging.INFO)
+    app.logger.setLevel(stdlog.INFO)
