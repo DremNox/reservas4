@@ -15,12 +15,35 @@ def puntos_list():
     _require_login()
     puntos = fetch_all("""
         SELECT p.PuntoId, p.Nombre, p.Notas,
-               (SELECT COUNT(*) FROM dbo.Conectores c WHERE c.PuntoId=p.PuntoId) AS NumConectores
+               (SELECT COUNT(*) FROM dbo.Conectores c WHERE c.PuntoId=p.PuntoId) AS NumConectores,
+               v.EstadoPunto, v.UltimaLecturaUtc
         FROM dbo.Puntos p
+        LEFT JOIN dbo.V_PuntoEstadoActual v ON v.PuntoId = p.PuntoId
         WHERE p.UserId=:uid
         ORDER BY p.PuntoId DESC
     """, uid=session["uid"])
     return render_template("dashboard/puntos.html", puntos=puntos)
+
+@bp.post("/dashboard/puntos/<int:punto_id>/delete")
+def punto_delete(punto_id: int):
+    _require_login()
+    # Validar propiedad
+    owner = fetch_one("SELECT 1 AS ok FROM dbo.Puntos WHERE PuntoId=:id AND UserId=:uid",
+                      id=punto_id, uid=session["uid"])
+    if not owner:
+        abort(404)
+
+    # Borrado en cascada manual (si no tienes FK ON DELETE CASCADE)
+    execute("""
+      DELETE e FROM dbo.EstadosConector e
+      WHERE e.ConectorId IN (SELECT ConectorId FROM dbo.Conectores WHERE PuntoId=:pid);
+    """, pid=punto_id)
+    execute("DELETE FROM dbo.Conectores WHERE PuntoId=:pid;", pid=punto_id)
+    execute("DELETE FROM dbo.Puntos WHERE PuntoId=:pid;", pid=punto_id)
+
+    flash("Punto eliminado.", "success")
+    return redirect(url_for("puntos.puntos_list"))
+
 
 @bp.post("/dashboard/puntos/add")
 def puntos_add():

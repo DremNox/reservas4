@@ -15,6 +15,7 @@ logger.setLevel(logging.INFO)
 def main():
     logger.info("worker iniciado", extra={"extra_dict":{"interval_sec": INTERVAL}})
     print("[worker] iniciado, interval:", INTERVAL, "s")
+    
     while True:
         try:
             jobs = fetch_all("""
