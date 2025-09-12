@@ -49,3 +49,80 @@
   border-radius: .9rem;
 }
 .btn-lg{ border-radius: .9rem; }
+/* Superficie base del dashboard */
+.bg-surface{ background:#0b0f1a; }
+
+/* Navbar glass */
+.navbar-glass{
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  background-color: rgba(20,24,35,0.75);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.navbar-glass .navbar-toggler{ border-color: rgba(255,255,255,0.15); }
+.navbar-glass .navbar-toggler-icon{ filter: invert(1) grayscale(1); }
+
+/* Sidebar + shell */
+.dashboard-shell{
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.25rem;
+  padding: 1.25rem;
+}
+.dash-sidebar{
+  height: calc(100dvh - 72px);
+  position: sticky; top: 72px;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 1rem;
+  background: rgba(26,30,44,.6);
+  backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+}
+.dash-content{
+  min-height: calc(100dvh - 72px);
+}
+
+/* Sidebar collapsed */
+.sidebar-collapsed .dashboard-shell{ grid-template-columns: 68px 1fr; }
+.sidebar-collapsed .dash-sidebar .nav-link{ justify-content: center; }
+.sidebar-collapsed .dash-sidebar .nav-link span{ display: none; }
+.sidebar-collapsed .dash-sidebar .nav-link i{ margin-right: 0 !important; }
+.sidebar-collapsed .dash-sidebar .d-flex.align-items-center.justify-content-between{ justify-content:center!important; }
+.sidebar-collapsed .dash-sidebar .d-flex.align-items-center.justify-content-between > span { display:none; }
+
+/* Nav links */
+.dash-sidebar .nav-link{
+  color: #c6c9d3; border-radius:.75rem; padding:.6rem .8rem;
+}
+.dash-sidebar .nav-link i{ margin-right:.5rem; }
+.dash-sidebar .nav-link.active,
+.dash-sidebar .nav-link:hover{
+  background: rgba(124,77,255,.16);
+  color: #fff;
+}
+
+/* Tarjetas suaves */
+.card-soft{
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1rem;
+}
+
+/* Lista de actividad */
+.list-activity .list-group-item{
+  background: transparent; color:#cfd3dc; border-color: rgba(255,255,255,0.06);
+}
+.list-activity .bi-dot{ font-size: 1.4rem; vertical-align: middle; }
+
+/* Brand small icon (navbar) */
+.brand-icon.small{
+  width: 28px; height: 28px; display:inline-flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, var(--blob-a), var(--blob-b)); color:#fff; border-radius:.4rem;
+}
+
+/* Responsive */
+@media (max-width: 992px){
+  .dashboard-shell{ grid-template-columns: 1fr; }
+  .dash-sidebar{ position: relative; top:0; height:auto; }
+}
