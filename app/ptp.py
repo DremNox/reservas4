@@ -2,13 +2,16 @@
 import os
 import json
 import time
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Any
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, current_app
-from flask import abort
-import logging
+from flask import (
+    Blueprint, render_template, request, redirect,
+    url_for, session, flash, current_app, abort
+)
+
 from .db import fetch_one, fetch_all, execute
 from .utils.crypto import encrypt_str, decrypt_str
 
@@ -26,7 +29,7 @@ from selenium.common.exceptions import (
     ElementNotInteractableException,
 )
 
-bp = Blueprint("ptp", __name__)  # usamos la carpeta global "templates/"
+bp = Blueprint("ptp", __name__)  # rutas declaradas aquí; en create_app se registra con url_prefix="/account"
 
 # ------------------- CONFIG / CONSTANTES -------------------
 HEADLESS = os.getenv("SELENIUM_HEADLESS", "1") == "1"
@@ -36,7 +39,7 @@ IMPLICIT_WAIT = int(os.getenv("SELENIUM_IMPLICIT_WAIT", "5"))
 
 PTP_LOGIN_URL = "https://account.placetoplug.com/es/entrar?from=placetoplug.com%2Fes"
 
-# XPaths que nos pasaste
+# XPaths
 X_EMAIL = "//input[@placeholder='Email']"
 X_BTN_SIGUIENTE_EMAIL = "//div[@class='outlet']//div[1]//div[2]//button[1]"
 X_PASSWORD = "//input[@placeholder='Contraseña']"
@@ -46,13 +49,24 @@ X_BTN_SIGUIENTE_PASS = "//body//app-root//div[2]//div[2]//button[1]"
 LOGS_DIR = Path("/opt/reservas4/logs")
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 COOKIES_JSON_PATH = LOGS_DIR / "ptp_cookies_dump.json"
-logger = logging.getLogger("ptp")  # logger de módulo, usable fuera/ dentro de Flask
+
+logger = logging.getLogger("ptp")
 
 
 # ------------------- HELPERS WEB -------------------
 def _require_login():
     if not session.get("uid"):
         abort(401)
+
+
+def _mask_email(e: str) -> str:
+    try:
+        user, dom = e.split("@", 1)
+        if len(user) <= 2:
+            return "***@" + dom
+        return f"{user[0]}***{user[-1]}@{dom}"
+    except Exception:
+        return "***"
 
 
 # ------------------- UTILIDADES SELENIUM -------------------
@@ -102,13 +116,13 @@ def dump_cookies(driver) -> List[Dict[str, Any]]:
     return cookies
 
 
-def save_json(cookies: List[Dict[str, Any]], path: Path) -> None:
-    path.write_text(json.dumps(cookies, ensure_ascii=False, indent=2), encoding="utf-8")
+def save_json(obj: Any, path: Path) -> None:
+    path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def maybe_accept_cookies_banner(driver):
-    logger.info("cookies.banner.try")
     """Intenta aceptar banners de cookies comunes; ignora si no hay."""
+    logger.info("cookies.banner.try")
     candidates = [
         "//button[contains(., 'Aceptar')]",
         "//button[contains(., 'Aceptar todas')]",
@@ -125,25 +139,21 @@ def maybe_accept_cookies_banner(driver):
                     time.sleep(0.5)
                     logger.info("cookies.banner.accepted selector=%s", xp)
                     break
-                except Exception:
-                    logger.warning("cookies.banner.click.fail selector=%s err=%s", xp, e)                    
+                except Exception as e:
+                    logger.warning("cookies.banner.click.fail selector=%s err=%s", xp, e)
         except Exception:
+            # seguimos probando otros selectores silenciosamente
             pass
 
 
 # ------------------- FLUJO DE LOGIN PTP -------------------
-def _mask_email(e: str) -> str:
-    try:
-        user, dom = e.split("@", 1)
-        if len(user) <= 2:
-            return "***@" + dom
-        return user[0] + "***" + user[-1] + "@" + dom
-    except Exception:
-        return "***"
 def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]:
+    """
+    Realiza login en PlaceToPlug con Selenium y devuelve cookies capturadas (lista dict).
+    No persiste en BD aquí; para eso usa selenium_login_and_store_cookies().
+    """
     t0 = time.time()
-    #logger.info("ptp.login.start url=%s email=%s", PTP_LOGIN_URL, _mask_email(email))
-    logger.info("ptp.login.start url=%s email=%s", PTP_LOGIN_URL, email)
+    logger.info("ptp.login.start url=%s email=%s", PTP_LOGIN_URL, _mask_email(email))
 
     driver = create_driver(HEADLESS)
     try:
@@ -166,7 +176,7 @@ def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]
         btn_siguiente_email.click()
         logger.info("ptp.login.email.next.clicked")
 
-        # 3) Password (tras “siguiente” del email)
+        # 3) Password
         password_box = wait_visible(driver, X_PASSWORD)
         logger.info("ptp.login.pass.input.visible")
         try:
@@ -174,15 +184,14 @@ def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]
         except Exception:
             password_box.send_keys(Keys.CONTROL, "a")
             password_box.send_keys(Keys.DELETE)
-
-        logger.info("ptp.login.pass.typed")
         password_box.send_keys(password)
+        logger.info("ptp.login.pass.typed")
 
         btn_siguiente_pass = wait_clickable(driver, X_BTN_SIGUIENTE_PASS)
         btn_siguiente_pass.click()
         logger.info("ptp.login.pass.next.clicked")
 
-        # 4) Esperar a “login hecho”: cookies de sesión o cambio de URL
+        # 4) Esperar a éxito de login (cookie de sesión o cambio de URL)
         WebDriverWait(driver, EXPLICIT_WAIT).until(
             lambda d: ("session" in "".join([c["name"].lower() for c in d.get_cookies()]))
                       or d.current_url != PTP_LOGIN_URL
@@ -191,25 +200,94 @@ def login_and_collect_cookies(email: str, password: str) -> List[Dict[str, Any]]
 
         # 5) Volcado de cookies
         cookies = dump_cookies(driver)
-        # Debug opcional
-        # save_json(cookies, COOKIES_JSON_PATH)
+        has_auth = any((c.get("name", "").lower() == "auth_token" and c.get("value")) for c in cookies)
         logger.info(
             "ptp.login.success cookies=%s auth_token=%s duration_ms=%s url_final=%s",
-            len(cookies), has_auth, int((time.time()-t0)*1000), driver.current_url
+            len(cookies), has_auth, int((time.time() - t0) * 1000), driver.current_url
         )
+
+        # Debug opcional
+        # save_json(cookies, COOKIES_JSON_PATH)
+
         return cookies
 
     except (TimeoutException, NoSuchElementException, ElementNotInteractableException) as e:
         ts = int(time.time())
         try:
-            driver.save_screenshot(str(LOGS_DIR / f"login_error_{ts}.png"))
+            shot = LOGS_DIR / f"login_error_{ts}.png"
+            driver.save_screenshot(str(shot))
             logger.error("ptp.login.fail screenshot=%s err=%s", shot, e, exc_info=True)
         except Exception:
             pass
         raise RuntimeError(f"Error durante login PTP: {e}") from e
     finally:
-        driver.quit()
-        logger.info("ptp.login.driver.quit duration_ms=%s", int((time.time()-t0)*1000))
+        try:
+            driver.quit()
+        finally:
+            logger.info("ptp.login.driver.quit duration_ms=%s", int((time.time() - t0) * 1000))
+
+
+# ------------------- GUARDAR COOKIES EN BD -------------------
+def store_cookies_in_db(account_id: int, cookies: List[Dict[str, Any]]) -> tuple[int, bool]:
+    """
+    Guarda cookies en dbo.CookiesPTP con invalidación de la vigente por (Name,Domain,Path).
+    Devuelve (total_guardadas, hay_auth_token).
+    """
+    total_saved = 0
+    has_auth = False
+    name_stats: Dict[str, int] = {}
+
+    for c in cookies:
+        name = c.get("name")
+        value = c.get("value")
+        domain = c.get("domain") or "placetoplug.com"
+        path = c.get("path") or "/"
+        expiry = c.get("expiry")
+        httpOnly = 1 if c.get("httpOnly") else 0
+        secure = 1 if c.get("secure") else 0
+        sameSite = c.get("sameSite")
+
+        # Convertir expiry (epoch) -> datetime
+        exp_dt = None
+        if isinstance(expiry, (int, float)):
+            exp_dt = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
+
+        # invalidar anteriores "vigentes"
+        execute("""
+            UPDATE dbo.CookiesPTP
+            SET IsCurrent = 0, IsValid = 0
+            WHERE AccountId=:aid AND Name=:n AND Domain=:d AND Path=:p AND IsCurrent=1
+        """, aid=account_id, n=name, d=domain, p=path)
+
+        # insertar nueva vigente
+        execute("""
+            INSERT INTO dbo.CookiesPTP
+            (AccountId, Name, Value, Domain, Path, ExpiryUtc, Secure, HttpOnly, SameSite,
+             LastLoginUtc, LastRefreshUtc, IsValid, IsCurrent)
+            VALUES
+            (:aid, :n, :v, :d, :p, :exp, :sec, :httponly, :ss, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, 1)
+        """, aid=account_id, n=name, v=value, d=domain, p=path, exp=exp_dt,
+           sec=secure, httponly=httpOnly, ss=sameSite)
+
+        total_saved += 1
+        name_stats[name or "(none)"] = name_stats.get(name or "(none)", 0) + 1
+        if name and name.lower() == "auth_token" and value:
+            has_auth = True
+
+    logger.info(
+        "ptp.cookies.store account_id=%s total=%s names=%s auth_token=%s",
+        account_id, total_saved, name_stats, has_auth
+    )
+    return total_saved, has_auth
+
+
+def selenium_login_and_store_cookies(account_id: int, email: str, password: str) -> tuple[int, bool]:
+    """
+    Login con Selenium y persistencia en BD para uso por workers y vistas.
+    Alias estable, usado por workers.
+    """
+    cookies = login_and_collect_cookies(email, password)
+    return store_cookies_in_db(account_id, cookies)
 
 
 # ------------------- VISTAS -------------------
@@ -264,7 +342,7 @@ def ptp_save():
              VALUES (s.AccountId, :p, N'fernet-v1');
     """, acc=acc["AccountId"], p=enc)
 
-    current_app.logger.info("PTP credenciales guardadas para '%s'", email)
+    current_app.logger.info("PTP credenciales guardadas para '%s'", _mask_email(email))
     flash("Cuenta PTP guardada en BD (password cifrada).", "success")
     return redirect(url_for("ptp.ptp_get"))
 
@@ -275,7 +353,7 @@ def ptp_refresh_now():
     account = fetch_one("""
         SELECT a.AccountId, a.EmailPTP, c.PasswordEnc
         FROM dbo.CuentasPTP a
-        JOIN dbo.CredencialesPTP c ON c.AccountId = a.AccountIds
+        JOIN dbo.CredencialesPTP c ON c.AccountId = a.AccountId
         WHERE a.UserId=:uid
     """, uid=session["uid"])
 
@@ -291,61 +369,9 @@ def ptp_refresh_now():
         total_saved, has_auth = selenium_login_and_store_cookies(account["AccountId"], email, password)
         current_app.logger.info("PTP refresh cookies: guardadas=%s, auth_token=%s", total_saved, has_auth)
     except Exception as e:
-        current_app.logger.error("Selenium login error: %s", e)
+        current_app.logger.error("Selenium login error: %s", e, exc_info=True)
         flash("Fallo al iniciar sesión en PlaceToPlug (ver logs).", "error")
         return redirect(url_for("ptp.ptp_get"))
 
     flash(f"Cookies guardadas: {total_saved}. auth_token={'OK' if has_auth else 'NO'}", "success")
     return redirect(url_for("ptp.ptp_get"))
-# ... (todo lo anterior igual)
-
-# ------------------- GUARDAR COOKIES EN BD (reutilizable) -------------------
-def store_cookies_in_db(account_id: int, cookies: List[Dict[str, Any]]) -> tuple[int, bool]:
-    """Guarda cookies en dbo.CookiesPTP con invalidación de la vigente por (Name,Domain,Path).
-    Devuelve (total_guardadas, hay_auth_token)."""
-    total_saved = 0
-    has_auth = False
-    name_stats = {}
-
-    for c in cookies:
-        name = c.get("name")
-        value = c.get("value")
-        domain = c.get("domain") or "placetoplug.com"
-        path = c.get("path") or "/"
-        expiry = c.get("expiry")
-        httpOnly = 1 if c.get("httpOnly") else 0
-        secure = 1 if c.get("secure") else 0
-        sameSite = c.get("sameSite")
-
-        exp_dt = None
-        if isinstance(expiry, (int, float)):
-            exp_dt = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
-
-        execute("""
-            UPDATE dbo.CookiesPTP
-            SET IsCurrent = 0, IsValid = 0
-            WHERE AccountId=:aid AND Name=:n AND Domain=:d AND Path=:p AND IsCurrent=1
-        """, aid=account_id, n=name, d=domain, p=path)
-
-        execute("""
-            INSERT INTO dbo.CookiesPTP
-            (AccountId, Name, Value, Domain, Path, ExpiryUtc, Secure, HttpOnly, SameSite,
-             LastLoginUtc, LastRefreshUtc, IsValid, IsCurrent)
-            VALUES
-            (:aid, :n, :v, :d, :p, :exp, :sec, :httponly, :ss, SYSUTCDATETIME(), SYSUTCDATETIME(), 1, 1)
-        """, aid=account_id, n=name, v=value, d=domain, p=path, exp=exp_dt,
-             sec=secure, httponly=httpOnly, ss=sameSite)
-
-        total_saved += 1
-        if name and name.lower() == "auth_token" and value:
-            has_auth = True
-        logger.info("ptp.cookies.store account_id=%s total=%s names=%s auth_token=%s",
-            account_id, total_saved, by_name, has_auth)
-
-    return total_saved, has_auth
-
-
-def selenium_login_and_store_cookies(account_id: int, email: str, password: str) -> tuple[int, bool]:
-    """Login con Selenium y persistencia en BD para uso por workers y vistas."""
-    cookies = login_and_collect_cookies(email, password)
-    return store_cookies_in_db(account_id, cookies)

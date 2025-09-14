@@ -1,3 +1,4 @@
+# app/estado.py
 import time, logging
 from typing import Optional, Tuple
 from selenium.webdriver.common.by import By

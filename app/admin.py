@@ -1,3 +1,4 @@
+# app/admin.py
 from flask import Blueprint, render_template, session, abort
 
 bp = Blueprint("admin", __name__)

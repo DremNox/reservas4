@@ -1,12 +1,10 @@
 {% extends "dashboard/_layout.html" %}
 {% set titulo = "Punto: " ~ p.Nombre %}
-{% set subtitulo = "Conectores y estado actual" %}
+{% set subtitulo = "Conectores, estados y metadatos" %}
 
 {% block content %}
-<div class="mb-3 d-flex justify-content-end">
-  <button id="btn-refresh-punto" class="btn btn-outline-primary">Refrescar estados de este punto</button>
-</div>
-<div id="punto-refresh-result"></div>
+
+<!-- Cabecera del punto -->
 <div class="card card-soft mb-4">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center">
@@ -14,19 +12,35 @@
         <div class="fw-semibold">{{ p.Nombre }}</div>
         {% if p.Notas %}<div class="text-secondary small">{{ p.Notas }}</div>{% endif %}
       </div>
-      <div>
+      <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('puntos.puntos_list') }}">&larr; Volver</a>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Acciones del punto -->
+<div class="card card-soft mb-4">
+  <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
+    <div class="text-secondary small">
+      Usa tus cookies para refrescar estados (cada conector) o metadatos (punto + conectores).
+    </div>
+    <div class="d-flex gap-2">
+      <button id="btn-refresh-punto" class="btn btn-outline-primary">Refrescar estados de este punto</button>
+      <button id="btn-meta" class="btn btn-outline-info">Refrescar información del punto</button>
+    </div>
+  </div>
+</div>
+<div id="punto-refresh-result" class="mb-3"></div>
+<div id="meta-msg" class="mb-4"></div>
+
+<!-- Alta de conector -->
 <div class="card card-soft mb-4">
   <div class="card-body">
     <h5 class="mb-3">Añadir conector</h5>
     <form method="post" action="{{ url_for('puntos.conector_add', punto_id=p.PuntoId) }}" class="row g-2">
       <div class="col-md-3">
-        <input class="form-control" name="nombre" placeholder="Nombre (p. ej. AC / Toma A / Toma B)" required>
+        <input class="form-control" name="nombre" placeholder="Nombre (AC / Toma A / Toma B)" required>
       </div>
       <div class="col-md-5">
         <input class="form-control" name="url" placeholder="URL completa del conector (PTP)" required>
@@ -44,6 +58,7 @@
   </div>
 </div>
 
+<!-- Lista de conectores -->
 <div class="card card-soft">
   <div class="card-body">
     <h5 class="mb-3">Conectores</h5>
@@ -53,25 +68,40 @@
           <tr>
             <th>Nombre</th>
             <th>Tipo</th>
-            <th>URL</th>
+            <th>Potencia (kW)</th>
+            <th>Precio</th>
             <th>Estado actual</th>
             <th>Última lectura (UTC)</th>
+            <th>URL</th>
             <th class="text-end">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for c in conectores %}
           {% set e = estado_map.get(c.ConectorId) %}
+          {% set info = info_map.get(c.ConectorId) if info_map is defined else none %}
           <tr>
             <td class="fw-semibold">{{ c.Nombre }}</td>
-            <td>{{ c.Tipo or "-" }}</td>
-            <td class="small text-break" style="max-width: 360px;">
-              <a href="{{ c.UrlConector }}" target="_blank" rel="noopener">Abrir Conector</a>
+            <td>{{ c.Tipo or (info.Tipo if info) or '-' }}</td>
+            <td>{{ '%.2f'|format(info.PotenciaKw) if info and info.PotenciaKw is not none else '-' }}</td>
+            <td>
+              {% if info and info.PrecioTexto %}
+                {{ info.PrecioTexto }}
+                {% if info.PrecioKwh %}<span class="text-secondary small"> ({{ '%.4f'|format(info.PrecioKwh) }} €/kWh)</span>{% endif %}
+              {% else %}
+                -
+              {% endif %}
             </td>
             <td>
               {% if e %}
                 {% set st = e.Estado or 'Desconocido' %}
-                <span class="badge {% if st=='Libre' %}bg-success{% elif st=='Ocupado' %}bg-danger{% elif st=='Reservado' %}bg-warning text-dark{% elif st in ['Averiado','No disponible'] %}bg-secondary{% else %}bg-dark{% endif %}">
+                <span class="badge
+                  {% if st=='Libre' %} bg-success
+                  {% elif st=='Ocupado' %} bg-danger
+                  {% elif st=='Reservado' %} bg-warning text-dark
+                  {% elif st in ['Averiado','No disponible'] %} bg-secondary
+                  {% else %} bg-dark
+                  {% endif %}">
                   {{ st }}
                 </span>
               {% else %}
@@ -79,6 +109,9 @@
               {% endif %}
             </td>
             <td>{{ e.CapturedAtUtc if e else '-' }}</td>
+            <td class="small text-break" style="max-width: 320px;">
+              <a href="{{ c.UrlConector }}" target="_blank" rel="noopener">Abrir</a>
+            </td>
             <td class="text-end">
               <form method="post" action="{{ url_for('puntos.conector_toggle', punto_id=p.PuntoId, conector_id=c.ConectorId) }}" class="d-inline">
                 <button class="btn btn-sm {% if c.Activo %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
@@ -88,17 +121,18 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="6" class="text-secondary">Aún no hay conectores.</td></tr>
+          <tr><td colspan="8" class="text-secondary">Aún no hay conectores.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 </div>
-{% endblock %}
+
+<!-- JS acciones -->
 <script>
-document.getElementById('btn-refresh-punto').addEventListener('click', async () => {
-  const btn = event.currentTarget;
+document.getElementById('btn-refresh-punto').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
   btn.disabled = true; btn.textContent = 'Actualizando...';
   try {
     const res = await fetch('{{ url_for("puntos.punto_refresh", punto_id=p.PuntoId) }}', { method: 'POST' });
@@ -108,14 +142,36 @@ document.getElementById('btn-refresh-punto').addEventListener('click', async () 
       box.innerHTML = `<div class="alert alert-danger">⚠️ ${data.error || 'Error desconocido'}</div>`;
     } else {
       box.innerHTML = `<div class="alert alert-success">✅ Actualizados ${data.count} conectores de este punto.</div>`;
-      // Si quieres, aquí podrías hacer location.reload() para ver los nuevos estados en la tabla:
-      // setTimeout(() => location.reload(), 800);
+      setTimeout(()=>location.reload(), 800);
     }
-  } catch (e) {
+  } catch (err) {
     document.getElementById('punto-refresh-result').innerHTML =
-      `<div class="alert alert-danger">⚠️ Fallo al refrescar: ${e}</div>`;
+      `<div class="alert alert-danger">⚠️ Fallo al refrescar: ${err}</div>`;
   } finally {
     btn.disabled = false; btn.textContent = 'Refrescar estados de este punto';
   }
 });
+
+document.getElementById('btn-meta').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true; btn.textContent = 'Actualizando...';
+  try {
+    const res = await fetch('{{ url_for("puntos.punto_meta_refresh", punto_id=p.PuntoId) }}', { method: 'POST' });
+    const data = await res.json();
+    const box = document.getElementById('meta-msg');
+    if (!data.ok) {
+      box.innerHTML = `<div class="alert alert-danger">⚠️ ${data.error || 'Error desconocido'}</div>`;
+    } else {
+      box.innerHTML = `<div class="alert alert-success">✅ Información actualizada.</div>`;
+      setTimeout(()=>location.reload(), 800);
+    }
+  } catch (err) {
+    document.getElementById('meta-msg').innerHTML =
+      `<div class="alert alert-danger">⚠️ Fallo al refrescar: ${err}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Refrescar información del punto';
+  }
+});
 </script>
+
+{% endblock %}

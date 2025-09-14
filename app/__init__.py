@@ -1,3 +1,5 @@
+
+# app/__init__.py					
 import os
 from flask import Flask, render_template, redirect, url_for, session, request
 from dotenv import load_dotenv

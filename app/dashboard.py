@@ -1,3 +1,4 @@
+# app/dashboard.py
 from flask import Blueprint, render_template, session, abort, jsonify, current_app
 from .db import fetch_all
 from .estado import scrape_conector_estado

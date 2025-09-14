@@ -1,5 +1,7 @@
+# app/logging.py
 import logging, json, os
 from datetime import datetime, timezone
+from flask import request
 
 # Evitamos import circular: importamos dentro de los métodos
 # from .db import execute
@@ -79,4 +81,67 @@ def setup_logging(app):
         # Evita llenar la tabla con /healthz
         if getattr(resp, "status_code", 200) >= 400:
             app.logger.warning("HTTP %s en %s", resp.status_code, getattr(resp, "direct_passthrough", False), extra={"extra_dict":{"status": resp.status_code}})
+        return resp
+class RequestContextFilter(logging.Filter):
+    def filter(self, record):
+        try:
+            from flask import has_request_context, session
+            if has_request_context():
+                record.user_id = session.get("uid")
+                record.path = getattr(request, "path", None)
+            else:
+                record.user_id = getattr(record, "user_id", None)
+                record.path = getattr(record, "path", None)
+        except Exception:
+            record.user_id = None
+            record.path = None
+        return True
+
+class DBHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            msg = record.getMessage()
+            level = record.levelname
+            module = record.name
+            user_id = getattr(record, "user_id", None)
+            path = getattr(record, "path", None)
+
+            extra_json = None
+            if hasattr(record, "extra_dict"):
+                try:
+                    extra_json = json.dumps(record.extra_dict, ensure_ascii=False)
+                except Exception:
+                    pass
+
+            from .db import execute
+            execute("""
+                INSERT INTO dbo.LogsApp(Level, Module, Message, UserId, RequestPath, ExtraJson)
+                VALUES (:lvl, :mod, :msg, :uid, :path, :extra)
+            """, lvl=level, mod=module, msg=msg, uid=user_id, path=path, extra=extra_json)
+
+        except Exception:
+            try:
+                fallback = "/opt/reservas4/logs/app.log"
+                os.makedirs(os.path.dirname(fallback), exist_ok=True)
+                with open(fallback, "a", encoding="utf-8") as f:
+                    ts = datetime.now(timezone.utc).isoformat()
+                    f.write(f"[{ts}] {record.levelname} {record.name} uid={getattr(record,'user_id',None)} path={getattr(record,'path',None)}: {record.getMessage()}\n")
+            except Exception:
+                pass
+
+def setup_logging(app):
+    handler = DBHandler()
+    handler.setLevel(logging.INFO)
+    handler.addFilter(RequestContextFilter())
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    handler.setFormatter(fmt)
+
+    app.logger.addHandler(handler)
+    app.logger.setLevel(logging.INFO)
+
+    @app.after_request
+    def _after(resp):
+        if getattr(resp, "status_code", 200) >= 400 and request.path != "/healthz":
+            app.logger.warning("HTTP %s %s", resp.status_code, request.path,
+                               extra={"extra_dict":{"status": resp.status_code}})
         return resp

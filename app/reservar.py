@@ -1,3 +1,4 @@
+# app/reservas.py
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort,current_app
 from .db import fetch_all, fetch_one, execute
 

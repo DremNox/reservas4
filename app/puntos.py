@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from .db import fetch_all, fetch_one, execute
 from .estado import scrape_conector_estado
 from flask import jsonify
+from .meta import scrape_punto_info, scrape_conector_info
 
 bp = Blueprint("puntos", __name__, template_folder="../templates")
 
@@ -161,3 +162,36 @@ def punto_refresh(punto_id: int):
             results.append({"conector_id": c["ConectorId"], "estado": "Error", "hint": str(e)})
 
     return jsonify({ "ok": True, "count": len(results), "results": results })
+@bp.post("/dashboard/puntos/<int:punto_id>/meta-refresh")
+def punto_meta_refresh(punto_id: int):
+    _require_login()
+    p = fetch_one("SELECT PuntoId, UrlPunto FROM dbo.Puntos WHERE PuntoId=:id AND UserId=:uid",
+                  id=punto_id, uid=session["uid"])
+    if not p: abort(404)
+
+    acc = fetch_one("""
+      SELECT TOP 1 a.AccountId
+      FROM dbo.CuentasPTP a JOIN dbo.CredencialesPTP c ON c.AccountId=a.AccountId
+      WHERE a.UserId=:uid ORDER BY a.AccountId
+    """, uid=session["uid"])
+    if not acc:
+        return jsonify({"ok": False, "error": "Configura tu cuenta PTP primero."}), 400
+    account_id = acc["AccountId"]
+
+    info_p = {}
+    if p.get("UrlPunto"):
+        try:
+            info_p = scrape_punto_info(account_id, p["PuntoId"], p["UrlPunto"])
+        except Exception as e:
+            current_app.logger.error("meta punto error: %s", e, exc_info=True)
+
+    conns = fetch_all("SELECT ConectorId, UrlConector FROM dbo.Conectores WHERE PuntoId=:pid AND Activo=1 ORDER BY Orden, ConectorId",
+                      pid=punto_id)
+    infos_c = []
+    for c in conns:
+        try:
+            infos_c.append(scrape_conector_info(account_id, c["ConectorId"], c["UrlConector"]))
+        except Exception as e:
+            current_app.logger.error("meta conector error: %s", e, exc_info=True)
+
+    return jsonify({"ok": True, "punto": info_p, "conectores": infos_c})

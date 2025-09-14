@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session,current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from passlib.hash import pbkdf2_sha256 as hasher
 from .db import fetch_one
 
@@ -20,24 +20,25 @@ def login_post():
     """, u=username)
 
     if not row or not row["IsActive"] or not hasher.verify(password, row["PasswordHash"]):
-        current_app.logger.warning("Login fallido para '%s'", username, extra={"extra_dict":{"reason":"invalid_credentials"}})
+        current_app.logger.warning("Login fallido para '%s'", username,
+                                   extra={"extra_dict":{"reason":"invalid_credentials"}})
         flash("Usuario o contraseña no válidos", "error")
         return redirect(url_for("auth.login_get"))
 
-    # Sesión muy simple
     session["uid"] = int(row["UserId"])
     session["uname"] = row["Username"]
     session["role"] = row["Role"]
 
-    # 👇 Aquí añadimos soporte para ?next= o hidden input
-    current_app.logger.info("Login OK de '%s' (uid=%s, role=%s)", row["Username"], row["UserId"], row["Role"])
+    current_app.logger.info("Login OK de '%s' (uid=%s, role=%s)",
+                            row["Username"], row["UserId"], row["Role"])
 
     next_url = request.args.get("next") or request.form.get("next") or url_for("dash.estado")
     return redirect(next_url)
 
-
 @bp.get("/logout")
 def logout():
+    uid = session.get("uid")
+    uname = session.get("uname")
     session.clear()
     current_app.logger.info("Logout de uid=%s uname=%s", uid, uname)
     return redirect(url_for("auth.login_get"))
